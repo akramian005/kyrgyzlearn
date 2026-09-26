@@ -1,5 +1,4 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Platform } from 'react-native';
 
 export type MediaKind = 'image' | 'audio';
 
@@ -12,6 +11,7 @@ export type PickedFile = {
 };
 
 // бэкенд проверяет Content-Type (image/* или audio/*), а пикер иногда его не знает
+// или отдаёт неподходящий (например, video/3gpp для записи диктофона на Android)
 const MIME_BY_EXTENSION: Record<string, string> = {
     png: 'image/png',
     jpg: 'image/jpeg',
@@ -19,14 +19,28 @@ const MIME_BY_EXTENSION: Record<string, string> = {
     gif: 'image/gif',
     webp: 'image/webp',
     heic: 'image/heic',
+    heif: 'image/heif',
+    avif: 'image/avif',
+    bmp: 'image/bmp',
+    tif: 'image/tiff',
+    tiff: 'image/tiff',
     mp3: 'audio/mpeg',
     wav: 'audio/wav',
     m4a: 'audio/mp4',
+    mp4: 'audio/mp4',
     aac: 'audio/aac',
     ogg: 'audio/ogg',
     oga: 'audio/ogg',
     opus: 'audio/opus',
     webm: 'audio/webm',
+    flac: 'audio/flac',
+    amr: 'audio/amr',
+    '3gp': 'audio/3gpp',
+    '3gpp': 'audio/3gpp',
+    aif: 'audio/aiff',
+    aiff: 'audio/aiff',
+    caf: 'audio/x-caf',
+    wma: 'audio/x-ms-wma',
 };
 
 function guessMimeType(name: string, kind: MediaKind): string {
@@ -45,15 +59,4 @@ export async function pickFile(kind: MediaKind): Promise<PickedFile | null> {
     const asset = result.assets[0];
     const mimeType = asset.mimeType?.startsWith(`${kind}/`) ? asset.mimeType : guessMimeType(asset.name, kind);
     return { uri: asset.uri, name: asset.name, mimeType, file: asset.file };
-}
-
-export function toFormData(picked: PickedFile): FormData {
-    const form = new FormData();
-    if (Platform.OS === 'web' && picked.file) {
-        form.append('file', picked.file, picked.name);
-    } else {
-        // React Native отправляет файл по uri — такой объект понимает только RN-реализация FormData
-        form.append('file', { uri: picked.uri, name: picked.name, type: picked.mimeType } as unknown as Blob);
-    }
-    return form;
 }

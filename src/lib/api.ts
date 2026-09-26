@@ -2,7 +2,8 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import type { AnswerOption, Course, Lesson, LessonMessage, LessonSummary, Page, Question, QuestionType, Role } from '@/lib/types';
-import { toFormData, type PickedFile } from '@/lib/files';
+import type { PickedFile } from '@/lib/files';
+import { uploadFile } from '@/lib/upload';
 
 const BACKEND_PORT = 8080;
 
@@ -41,11 +42,11 @@ type RequestOptions = {
     token?: string | null;
 };
 
+const NO_CONNECTION = 'Нет связи с сервером. Проверьте, что бэкенд запущен.';
+
 async function request<T>(path: string, { method = 'GET', body, token }: RequestOptions = {}): Promise<T> {
-    const isForm = body instanceof FormData;
     const headers: Record<string, string> = { Accept: 'application/json' };
-    // для FormData Content-Type с boundary выставляет сам fetch
-    if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
 
     let response: Response;
@@ -53,23 +54,41 @@ async function request<T>(path: string, { method = 'GET', body, token }: Request
         response = await fetch(`${API_URL}${path}`, {
             method,
             headers,
-            body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+            body: body === undefined ? undefined : JSON.stringify(body),
         });
     } catch {
-        throw new ApiError(0, 'Нет связи с сервером. Проверьте, что бэкенд запущен.');
+        throw new ApiError(0, NO_CONNECTION);
     }
 
-    const text = await response.text();
+    return parseResponse<T>(response.status, await response.text());
+}
 
-    if (!response.ok) {
+// Загрузка картинки/аудио: на телефоне и в вебе файл отправляется по-разному (см. lib/upload)
+async function uploadRequest(path: string, token: string | null, file: PickedFile): Promise<string> {
+    let result;
+    try {
+        result = await uploadFile(`${API_URL}${path}`, token, file);
+    } catch {
+        throw new ApiError(0, NO_CONNECTION);
+    }
+
+    try {
+        return parseResponse<string>(result.status, result.body);
+    } catch (e) {
+        throw e instanceof ApiError ? new ApiError(e.status, uploadErrorMessage(e)) : e;
+    }
+}
+
+function parseResponse<T>(status: number, text: string): T {
+    if (status < 200 || status >= 300) {
         // Spring отдаёт ошибку как { status, error, message, ... }
-        let message = `Ошибка сервера (${response.status})`;
+        let message = `Ошибка сервера (${status})`;
         try {
             message = JSON.parse(text).message ?? message;
         } catch {
             // тело не JSON — оставляем общее сообщение
         }
-        throw new ApiError(response.status, message);
+        throw new ApiError(status, message);
     }
 
     // DELETE отвечает 204 без тела, загрузка файла — строкой со ссылкой
@@ -79,6 +98,19 @@ async function request<T>(path: string, { method = 'GET', body, token }: Request
     } catch {
         return text as T;
     }
+}
+
+// Ошибки FileStorageService на бэкенде — по-русски и с подсказкой, что делать
+function uploadErrorMessage(e: ApiError): string {
+    if (e.status === 413 || e.message === 'File too large') {
+        return 'Файл слишком большой: картинка — до 10 МБ, аудио — до 20 МБ';
+    }
+    if (e.message.startsWith('Invalid file type')) return 'Этот формат файла не поддерживается';
+    if (e.message === 'File is empty') return 'Файл пустой';
+    if (e.message === 'Failed to upload file') {
+        return 'Сервер не смог сохранить файл. Проверьте, что запущено хранилище MinIO (docker compose up -d minio)';
+    }
+    return e.message;
 }
 
 export const authApi = {
@@ -116,8 +148,14 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
         }
     };
 
-    const upload = (path: string, file: PickedFile) =>
-        call<string>(path, { method: 'POST', body: toFormData(file) });
+    const upload = async (path: string, file: PickedFile) => {
+        try {
+            return await uploadRequest(path, token, file);
+        } catch (e) {
+            if (token && e instanceof ApiError && e.status === 401) onUnauthorized?.();
+            throw e;
+        }
+    };
 
     return {
         courses: {
