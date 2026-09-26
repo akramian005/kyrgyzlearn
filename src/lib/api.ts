@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import type { AnswerOption, Course, Lesson, LessonMessage, LessonSummary, Page, Question, QuestionType, Role } from '@/lib/types';
+import type { AnswerOption, Course, Lesson, LessonMessage, LessonSummary, Page, Question, QuestionType, Role, UserProfile } from '@/lib/types';
 import type { PickedFile } from '@/lib/files';
 import { uploadFile } from '@/lib/upload';
 
@@ -27,6 +27,7 @@ export const API_URL = resolveApiUrl();
 export type AuthResponse = {
     token: string;
     email: string;
+    name: string | null;
     role: Role;
 };
 
@@ -117,8 +118,8 @@ export const authApi = {
     login: (email: string, password: string) =>
         request<AuthResponse>('/api/auth/login', { method: 'POST', body: { email, password } }),
 
-    register: (email: string, password: string) =>
-        request<AuthResponse>('/api/auth/register', { method: 'POST', body: { email, password } }),
+    register: (name: string, email: string, password: string) =>
+        request<AuthResponse>('/api/auth/register', { method: 'POST', body: { name, email, password } }),
 };
 
 // ---------- Тела запросов ----------
@@ -158,6 +159,19 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
     };
 
     return {
+        // профиль текущего пользователя
+        profile: {
+            get: () => call<UserProfile>('/api/users/me'),
+            updateName: (name: string) => call<UserProfile>('/api/users/me', { method: 'PATCH', body: { name } }),
+            // в ответе новый токен: старый привязан к прежней почте
+            changeEmail: (email: string, currentPassword: string) =>
+                call<AuthResponse>('/api/users/me/email', { method: 'PATCH', body: { email, currentPassword } }),
+            changePassword: (currentPassword: string, newPassword: string) =>
+                call<void>('/api/users/me/password', { method: 'PATCH', body: { currentPassword, newPassword } }),
+            uploadAvatar: (file: PickedFile) => upload('/api/users/me/avatar', file),
+            removeAvatar: () => call<void>('/api/users/me/avatar', { method: 'DELETE' }),
+        },
+
         courses: {
             list: () => call<Page<Course>>(`/api/courses?${ALL}`).then((page) => page.content),
             get: (id: number) => call<Course>(`/api/courses/${id}`),

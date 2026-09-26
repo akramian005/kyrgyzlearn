@@ -11,8 +11,10 @@ type SessionContextValue = {
     session: Session | null;
     isLoading: boolean;
     signIn: (email: string, password: string) => Promise<void>;
-    signUp: (email: string, password: string) => Promise<void>;
+    signUp: (name: string, email: string, password: string) => Promise<void>;
     signOut: () => void;
+    // обновить сохранённую сессию после правок в профиле (имя, новая почта с новым токеном)
+    updateSession: (patch: Partial<Session>) => void;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -53,9 +55,9 @@ export function SessionProvider({ children }: PropsWithChildren) {
         }
     }, [saveSession]);
 
-    const signUp = useCallback(async (email: string, password: string) => {
+    const signUp = useCallback(async (name: string, email: string, password: string) => {
         try {
-            saveSession(await authApi.register(email, password));
+            saveSession(await authApi.register(name, email, password));
         } catch (e) {
             if (e instanceof ApiError && e.status === 409) {
                 throw new Error('Этот email уже зарегистрирован');
@@ -66,8 +68,12 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
     const signOut = useCallback(() => saveSession(null), [saveSession]);
 
+    const updateSession = useCallback((patch: Partial<Session>) => {
+        if (session) saveSession({ ...session, ...patch });
+    }, [session, saveSession]);
+
     return (
-        <SessionContext value={{ session, isLoading, signIn, signUp, signOut }}>
+        <SessionContext value={{ session, isLoading, signIn, signUp, signOut, updateSession }}>
             {children}
         </SessionContext>
     );

@@ -11,6 +11,15 @@ export type Page<T> = {
     totalElements: number;
 };
 
+export type UserProfile = {
+    id: number;
+    email: string;
+    // у старых аккаунтов, созданных до появления имени, может быть null
+    name: string | null;
+    role: Role;
+    avatarUrl: string | null;
+};
+
 export type Course = {
     id: number;
     title: string;

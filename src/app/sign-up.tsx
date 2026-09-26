@@ -6,21 +6,16 @@ import { useSession } from '@/auth/session';
 import { AuthScreen } from '@/components/auth-screen';
 import { ErrorBanner, Button, TextField } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
+import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, validateEmail, validateName, validateNewPassword } from '@/lib/validation';
 
-// те же правила, что в RegisterRequest на бэкенде — проверяем заранее, чтобы показать понятную ошибку
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 8;
-
-function validate(email: string, password: string, passwordRepeat: string): string | null {
-    if (!EMAIL_REGEX.test(email)) return 'Введите корректный email';
-    if (password.length < MIN_PASSWORD_LENGTH) return `Пароль должен быть не короче ${MIN_PASSWORD_LENGTH} символов`;
-    if (password !== passwordRepeat) return 'Пароли не совпадают';
-    return null;
+function validate(name: string, email: string, password: string, passwordRepeat: string): string | null {
+    return validateName(name) ?? validateEmail(email) ?? validateNewPassword(password, passwordRepeat);
 }
 
 export default function SignUpScreen() {
     const { signUp } = useSession();
 
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [passwordRepeat, setPasswordRepeat] = useState('');
@@ -28,7 +23,7 @@ export default function SignUpScreen() {
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
-        const validationError = validate(email.trim(), password, passwordRepeat);
+        const validationError = validate(name.trim(), email.trim(), password, passwordRepeat);
         if (validationError) {
             setError(validationError);
             return;
@@ -37,7 +32,7 @@ export default function SignUpScreen() {
         setError(null);
         setLoading(true);
         try {
-            await signUp(email.trim(), password);
+            await signUp(name.trim(), email.trim(), password);
         } catch (e) {
             setError(e instanceof Error ? e.message : 'Не удалось зарегистрироваться');
             setLoading(false);
@@ -48,6 +43,15 @@ export default function SignUpScreen() {
         <AuthScreen title="Регистрация" subtitle="Создайте аккаунт, чтобы сохранять прогресс">
             <ErrorBanner message={error} />
 
+            <TextField
+                label="Имя"
+                value={name}
+                onChangeText={setName}
+                placeholder="Как к вам обращаться"
+                autoComplete="name"
+                textContentType="name"
+                maxLength={MAX_NAME_LENGTH}
+            />
             <TextField
                 label="Email"
                 value={email}
