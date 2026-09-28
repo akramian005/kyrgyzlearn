@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import React, { type ComponentProps, type PropsWithChildren } from 'react';
+import React, { useState, type ComponentProps, type PropsWithChildren } from 'react';
 import {
     ActivityIndicator,
     Pressable,
@@ -120,16 +120,33 @@ export function ErrorBanner({ message }: { message: string | null | undefined })
 
 // ---------- Поля и кнопки ----------
 
-export function TextField({ label, multiline, style, ...props }: TextInputProps & { label: string }) {
+// у поля пароля (secureTextEntry) справа «глазик» — показать/скрыть вводимый текст
+export function TextField({ label, multiline, style, secureTextEntry, ...props }: TextInputProps & { label: string }) {
+    const [hidden, setHidden] = useState(true);
+
     return (
         <View style={styles.field}>
             <Text style={styles.label}>{label}</Text>
-            <TextInput
-                placeholderTextColor={AppColors.textSecondary}
-                multiline={multiline}
-                style={[styles.input, multiline && styles.inputMultiline, style]}
-                {...props}
-            />
+            <View>
+                <TextInput
+                    placeholderTextColor={AppColors.textSecondary}
+                    multiline={multiline}
+                    secureTextEntry={secureTextEntry && hidden}
+                    style={[styles.input, multiline && styles.inputMultiline, secureTextEntry && styles.inputWithToggle, style]}
+                    {...props}
+                />
+                {secureTextEntry ? (
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={hidden ? 'Показать пароль' : 'Скрыть пароль'}
+                        onPress={() => setHidden((value) => !value)}
+                        hitSlop={6}
+                        style={({ pressed }) => [styles.passwordToggle, pressed && styles.pressed]}
+                    >
+                        <Ionicons name={hidden ? 'eye-outline' : 'eye-off-outline'} size={22} color={AppColors.textSecondary} />
+                    </Pressable>
+                ) : null}
+            </View>
         </View>
     );
 }
@@ -355,6 +372,17 @@ const styles = StyleSheet.create({
     inputMultiline: {
         minHeight: 90,
         textAlignVertical: 'top',
+    },
+    inputWithToggle: {
+        paddingRight: 52, // место под «глазик», чтобы текст под него не заезжал
+    },
+    passwordToggle: {
+        position: 'absolute',
+        right: 6,
+        top: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        paddingHorizontal: 10,
     },
     button: {
         flexDirection: 'row',
