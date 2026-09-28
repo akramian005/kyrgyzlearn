@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router/js-tabs';
 import { useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSession } from '@/auth/session';
 import { AppColors } from '@/constants/app-colors';
 
 // с этой ширины (планшет, веб) панель переезжает влево, как у Duolingo на сайте
@@ -12,6 +13,8 @@ export default function TabsLayout() {
     const { width } = useWindowDimensions();
     const sidebar = width >= SIDEBAR_MIN_WIDTH;
     const insets = useSafeAreaInsets();
+    // у админа вместо «Прочее» (свои курсы) — раздел редактирования официальных курсов, см. more.tsx
+    const isAdmin = useSession().session?.role === 'ADMIN';
 
     return (
         <Tabs
@@ -67,9 +70,11 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="more"
                 options={{
-                    title: 'Прочее',
-                    tabBarIcon: ({ color, size }) => (
-                        <Ionicons name="ellipsis-horizontal" size={size} color={color} />
+                    title: isAdmin ? 'Админ' : 'Прочее',
+                    tabBarIcon: ({ color, size, focused }) => (
+                        isAdmin
+                            ? <Ionicons name={focused ? 'shield-checkmark' : 'shield-checkmark-outline'} size={size} color={color} />
+                            : <Ionicons name="ellipsis-horizontal" size={size} color={color} />
                     ),
                 }}
             />

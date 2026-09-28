@@ -182,7 +182,8 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
         courses: {
             list: () => call<Page<Course>>(`/api/courses?${ALL}`).then((page) => page.content),
             get: (id: number) => call<Course>(`/api/courses/${id}`),
-            create: (input: CourseInput) => call<Course>('/api/courses', { method: 'POST', body: input }),
+            // official — официальный курс (только админ), иначе личный
+            create: (input: CourseInput & { official?: boolean }) => call<Course>('/api/courses', { method: 'POST', body: input }),
             update: (id: number, input: Partial<CourseInput>) =>
                 call<Course>(`/api/courses/${id}`, { method: 'PATCH', body: input }),
             remove: (id: number) => call<void>(`/api/courses/${id}`, { method: 'DELETE' }),
