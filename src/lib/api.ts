@@ -187,6 +187,9 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
             update: (id: number, input: Partial<CourseInput>) =>
                 call<Course>(`/api/courses/${id}`, { method: 'PATCH', body: input }),
             remove: (id: number) => call<void>(`/api/courses/${id}`, { method: 'DELETE' }),
+            // картинка курса: новая заменяет старую; в ответе — ссылка на неё
+            uploadImage: (id: number, file: PickedFile) => upload(`/api/courses/${id}/image`, file),
+            removeImage: (id: number) => call<void>(`/api/courses/${id}/image`, { method: 'DELETE' }),
             // уроки и видео курса одним списком по порядку
             items: (id: number) => call<CourseItem[]>(`/api/courses/${id}/items`),
             // личные курсы всех пользователей по названию, постранично (page — с 0)

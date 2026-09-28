@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
@@ -33,6 +34,13 @@ export default function CourseScreen() {
 
                     {data ? (
                         <>
+                            {data.course.imageUrl ? (
+                                <Image
+                                    source={{ uri: data.course.imageUrl }}
+                                    style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16, marginBottom: 16, backgroundColor: AppColors.surfaceRaised }}
+                                    contentFit="cover"
+                                />
+                            ) : null}
                             <Title>{data.course.title}</Title>
                             <Muted style={{ marginTop: -8, marginBottom: 8 }}>{courseAuthor(data.course)}</Muted>
                             {courseProgressLabel(data.course) ? (

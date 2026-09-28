@@ -17,6 +17,7 @@ import {
     TextField,
 } from '@/components/app-ui';
 import { MarkdownField } from '@/components/editor/markdown-field';
+import { emptyMedia, MediaField, mediaPreview } from '@/components/editor/media-field';
 import { DESCRIPTION_TEXT_STYLE } from '@/components/markdown';
 import { VideoForm } from '@/components/editor/video-form';
 import { lessonNumber, LessonRow } from '@/components/lesson-row';
@@ -24,6 +25,7 @@ import { VideoRow } from '@/components/video-row';
 import { AppColors } from '@/constants/app-colors';
 import { confirmAsync } from '@/lib/confirm';
 import { errorMessage, useApi, useLoader } from '@/lib/hooks';
+import { applyMedia } from '@/lib/lesson-drafts';
 import type { Course, CourseItem, CourseVideo } from '@/lib/types';
 import { newVideoDraft, saveVideo, videoToDraft } from '@/lib/video-drafts';
 
@@ -240,10 +242,13 @@ function CourseForm({ course, onSaved }: { course: Course; onSaved: () => Promis
     const api = useApi();
     const [title, setTitle] = useState(course.title);
     const [description, setDescription] = useState(course.description ?? '');
+    // картинка загружается или удаляется вместе с сохранением названия и описания
+    const [image, setImage] = useState(() => emptyMedia(course.imageUrl));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const changed = title.trim() !== course.title || (description.trim() || null) !== (course.description || null);
+    const textChanged = title.trim() !== course.title || (description.trim() || null) !== (course.description || null);
+    const changed = textChanged || image.picked !== null || image.removed;
 
     const handleSave = async () => {
         if (!title.trim()) {
@@ -253,7 +258,12 @@ function CourseForm({ course, onSaved }: { course: Course; onSaved: () => Promis
         setError(null);
         setSaving(true);
         try {
-            await api.courses.update(course.id, { title: title.trim(), description: description.trim() || null });
+            if (textChanged) {
+                await api.courses.update(course.id, { title: title.trim(), description: description.trim() || null });
+            }
+            await applyMedia(image, (file) => api.courses.uploadImage(course.id, file), () => api.courses.removeImage(course.id));
+            // картинка сохранена — форма больше не считает её изменённой
+            setImage(emptyMedia(mediaPreview(image)));
             await onSaved();
         } catch (e) {
             setError(errorMessage(e));
@@ -273,6 +283,7 @@ function CourseForm({ course, onSaved }: { course: Course; onSaved: () => Promis
                 placeholder="О чём этот курс"
                 previewStyle={DESCRIPTION_TEXT_STYLE}
             />
+            <MediaField kind="image" label="Картинка курса (необязательно)" draft={image} onChange={setImage} />
             {changed ? <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} /> : null}
         </View>
     );

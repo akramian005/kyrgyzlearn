@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -21,9 +22,14 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward', sh
 
     return (
         <Card onPress={onPress} style={styles.card}>
-            <View style={[styles.icon, { backgroundColor: color }]}>
-                <Text style={styles.iconText}>{course.title.trim().charAt(0).toUpperCase() || '?'}</Text>
-            </View>
+            {/* картинка курса того же размера, что и значок с буквой; нет картинки — буква на цветном фоне */}
+            {course.imageUrl ? (
+                <Image source={{ uri: course.imageUrl }} style={[styles.icon, styles.image]} contentFit="cover" />
+            ) : (
+                <View style={[styles.icon, { backgroundColor: color }]}>
+                    <Text style={styles.iconText}>{course.title.trim().charAt(0).toUpperCase() || '?'}</Text>
+                </View>
+            )}
 
             <View style={styles.body}>
                 <Text style={styles.title} numberOfLines={2}>{course.title}</Text>
@@ -80,6 +86,9 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    image: {
+        backgroundColor: AppColors.surfaceRaised,
     },
     iconText: {
         color: '#fff',

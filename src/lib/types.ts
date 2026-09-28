@@ -24,6 +24,8 @@ export type Course = {
     id: number;
     title: string;
     description: string | null;
+    // картинка курса; null — нет, тогда вместо неё первая буква названия
+    imageUrl: string | null;
     position: number;
     type: CourseType;
     ownerId: number | null;
