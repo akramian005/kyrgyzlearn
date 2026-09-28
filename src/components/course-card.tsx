@@ -9,10 +9,11 @@ import type { Course } from '@/lib/types';
 // разные цвета значков, чтобы курсы в списке различались
 const ICON_COLORS = ['#58CC02', '#1CB0F6', '#FF9600', '#CE82FF', '#FF4B4B', '#FFC800'];
 
-export function CourseCard({ course, onPress, actionIcon = 'chevron-forward' }: {
+export function CourseCard({ course, onPress, actionIcon = 'chevron-forward', showAuthor = false }: {
     course: Course;
     onPress: () => void;
     actionIcon?: 'chevron-forward' | 'create-outline';
+    showAuthor?: boolean;
 }) {
     const color = ICON_COLORS[course.id % ICON_COLORS.length];
 
@@ -24,6 +25,9 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward' }: 
 
             <View style={styles.body}>
                 <Text style={styles.title} numberOfLines={2}>{course.title}</Text>
+                {showAuthor ? (
+                    <Text style={styles.author} numberOfLines={1}>{courseAuthor(course)}</Text>
+                ) : null}
                 {course.description ? (
                     <Text style={styles.description} numberOfLines={2}>{course.description}</Text>
                 ) : null}
@@ -36,6 +40,12 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward' }: 
             <Ionicons name={actionIcon} size={22} color={AppColors.textSecondary} />
         </Card>
     );
+}
+
+// создатель курса; если имени нет — показываем id пользователя
+export function courseAuthor(course: Course): string {
+    if (course.type === 'OFFICIAL') return 'Официальный курс KyrgyzLearn';
+    return `Автор: ${course.ownerName?.trim() || `пользователь #${course.ownerId}`}`;
 }
 
 export function lessonsLabel(count: number): string {
@@ -72,6 +82,11 @@ const styles = StyleSheet.create({
         color: AppColors.text,
         fontSize: 17,
         fontWeight: '800',
+    },
+    author: {
+        color: AppColors.blue,
+        fontSize: 13,
+        fontWeight: '700',
     },
     description: {
         color: AppColors.textSecondary,

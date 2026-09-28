@@ -1,21 +1,23 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 
-import { EmptyState, ErrorBanner, IconButton, LoadingView, Muted, Page, ScreenHeader, Title } from '@/components/app-ui';
+import { Button, EmptyState, ErrorBanner, IconButton, LoadingView, Muted, Page, ScreenHeader, Title } from '@/components/app-ui';
+import { courseAuthor } from '@/components/course-card';
 import { lessonNumber, LessonRow } from '@/components/lesson-row';
 import { VideoRow } from '@/components/video-row';
 import { AppColors } from '@/constants/app-colors';
-import { useApi, useLoader } from '@/lib/hooks';
-import type { CourseItem } from '@/lib/types';
+import { errorMessage, useApi, useLoader } from '@/lib/hooks';
+import type { Course, CourseItem } from '@/lib/types';
 
-// Курс для прохождения: уроки и видео одним списком, нажатие открывает урок или видео
+// Курс для прохождения: уроки и видео одним списком, нажатие открывает урок или видео.
+// Личный курс (открытый из поиска) можно сохранить — он появится в «Профиле».
 export default function CourseScreen() {
     const { courseId } = useLocalSearchParams<{ courseId: string }>();
     const id = Number(courseId);
     const api = useApi();
 
-    const { data, error, loading, reload } = useLoader(async () => {
+    const { data, error, loading, reload, setData } = useLoader(async () => {
         const [course, items] = await Promise.all([api.courses.get(id), api.courses.items(id)]);
         return { course, items };
     });
@@ -31,9 +33,18 @@ export default function CourseScreen() {
                     {data ? (
                         <>
                             <Title>{data.course.title}</Title>
+                            <Muted style={{ marginTop: -8, marginBottom: 8 }}>{courseAuthor(data.course)}</Muted>
                             {data.course.description ? (
-                                <Muted style={{ marginTop: -8, marginBottom: 20 }}>{data.course.description}</Muted>
+                                <Muted style={{ marginBottom: 12 }}>{data.course.description}</Muted>
                             ) : null}
+
+                            {data.course.type === 'USER' ? (
+                                <SaveButton
+                                    course={data.course}
+                                    onChange={(course) => setData({ ...data, course })}
+                                />
+                            ) : null}
+                            <View style={{ height: 12 }} />
 
                             {data.items.length === 0 ? (
                                 <EmptyState icon="book-outline" title="В курсе пока нет уроков" />
@@ -45,6 +56,44 @@ export default function CourseScreen() {
                 </Page>
             )}
         </View>
+    );
+}
+
+function SaveButton({ course, onChange }: { course: Course; onChange: (course: Course) => void }) {
+    const api = useApi();
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const toggle = async () => {
+        setBusy(true);
+        setError(null);
+        try {
+            if (course.saved) {
+                await api.saved.remove(course.id);
+            } else {
+                await api.saved.add(course.id);
+            }
+            onChange({ ...course, saved: !course.saved });
+        } catch (e) {
+            setError(errorMessage(e));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <>
+            <ErrorBanner message={error} />
+            <Button
+                title={course.saved ? 'Убрать из сохранённых' : 'Сохранить курс'}
+                icon={course.saved ? 'bookmark' : 'bookmark-outline'}
+                variant={course.saved ? 'secondary' : 'primary'}
+                small
+                loading={busy}
+                onPress={toggle}
+                style={{ alignSelf: 'flex-start' }}
+            />
+        </>
     );
 }
 

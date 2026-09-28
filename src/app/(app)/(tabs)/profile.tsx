@@ -1,22 +1,26 @@
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
 import { Avatar } from '@/components/avatar';
-import { Badge, Button, Card, ErrorBanner, LoadingView, Page, SectionTitle, TextField, Title } from '@/components/app-ui';
+import { Badge, Button, Card, EmptyState, ErrorBanner, LoadingView, Page, SectionTitle, TextField, Title } from '@/components/app-ui';
+import { CourseCard } from '@/components/course-card';
 import { AppColors } from '@/constants/app-colors';
 import { ApiError } from '@/lib/api';
 import { confirmAsync } from '@/lib/confirm';
 import { pickFile } from '@/lib/files';
 import { errorMessage, useApi, useLoader } from '@/lib/hooks';
-import type { UserProfile } from '@/lib/types';
+import type { Course, UserProfile } from '@/lib/types';
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, validateEmail, validateName, validateNewPassword } from '@/lib/validation';
 
-// «Профиль»: аватар, имя, почта, пароль и выход из аккаунта
+// «Профиль»: сохранённые курсы, аватар, имя, почта, пароль и выход из аккаунта
 export default function ProfileScreen() {
     const { session, signOut } = useSession();
     const api = useApi();
     const { data: profile, error, loading, reload, setData } = useLoader(() => api.profile.get());
+    // отдельный загрузчик: курс могли сохранить или убрать на экране курса — при возврате список обновится
+    const saved = useLoader(() => api.saved.list());
 
     const logout = async () => {
         if (await confirmAsync('Выйти из аккаунта?', 'Чтобы вернуться, нужно будет снова ввести email и пароль', 'Выйти')) {
@@ -31,7 +35,10 @@ export default function ProfileScreen() {
     const isAdmin = (profile?.role ?? session?.role) === 'ADMIN';
 
     return (
-        <Page onRefresh={reload}>
+        <Page onRefresh={() => {
+            void reload();
+            void saved.reload();
+        }}>
             <Title>Профиль</Title>
 
             <ErrorBanner message={error} />
@@ -45,6 +52,8 @@ export default function ProfileScreen() {
                 </View>
             </Card>
 
+            <SavedCourses courses={saved.data} error={saved.error} />
+
             {profile ? (
                 <>
                     <AvatarSection profile={profile} onChange={setData} />
@@ -56,6 +65,32 @@ export default function ProfileScreen() {
 
             <Button title="Выйти" icon="log-out-outline" variant="danger" onPress={logout} style={styles.logout} />
         </Page>
+    );
+}
+
+// ---------- Сохранённые курсы ----------
+
+function SavedCourses({ courses, error }: { courses: Course[] | undefined; error: string | null }) {
+    return (
+        <>
+            <SectionTitle>Сохранённые курсы</SectionTitle>
+            <ErrorBanner message={error} />
+            {courses && courses.length === 0 ? (
+                <EmptyState
+                    icon="bookmark-outline"
+                    title="Пока ничего не сохранено"
+                    text="Найдите курс во вкладке «Поиск» и нажмите «Сохранить курс»"
+                />
+            ) : null}
+            {courses?.map((course) => (
+                <CourseCard
+                    key={course.id}
+                    course={course}
+                    showAuthor
+                    onPress={() => router.push({ pathname: '/course/[courseId]', params: { courseId: course.id } })}
+                />
+            ))}
+        </>
     );
 }
 

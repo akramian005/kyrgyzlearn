@@ -27,8 +27,12 @@ export type Course = {
     position: number;
     type: CourseType;
     ownerId: number | null;
+    // имя создателя; null у официальных курсов и у пользователей без имени
+    ownerName: string | null;
     lessonCount: number;
     videoCount: number;
+    // курс в сохранённых у текущего пользователя
+    saved: boolean;
 };
 
 export type LessonSummary = {

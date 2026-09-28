@@ -183,12 +183,22 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
             remove: (id: number) => call<void>(`/api/courses/${id}`, { method: 'DELETE' }),
             // уроки и видео курса одним списком по порядку
             items: (id: number) => call<CourseItem[]>(`/api/courses/${id}/items`),
+            // личные курсы всех пользователей по названию, постранично (page — с 0)
+            search: (query: string, page: number, size: number) =>
+                call<Page<Course>>(`/api/courses/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
             // переместить урок или видео на новую позицию; возвращает новый порядок
             moveItem: (id: number, item: CourseItem, position: number) =>
                 call<CourseItem[]>(`/api/courses/${id}/items/position`, {
                     method: 'PATCH',
                     body: { kind: item.kind, id: item.id, position },
                 }),
+        },
+
+        // сохранённые курсы текущего пользователя
+        saved: {
+            list: () => call<Course[]>('/api/saved-courses'),
+            add: (courseId: number) => call<void>(`/api/saved-courses/${courseId}`, { method: 'PUT' }),
+            remove: (courseId: number) => call<void>(`/api/saved-courses/${courseId}`, { method: 'DELETE' }),
         },
 
         videos: {
