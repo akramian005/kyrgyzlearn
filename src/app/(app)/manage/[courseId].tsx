@@ -10,39 +10,74 @@ import {
     ErrorBanner,
     IconButton,
     LoadingView,
+    Muted,
     Page,
     ScreenHeader,
     SectionTitle,
     TextField,
 } from '@/components/app-ui';
-import { LessonRow } from '@/components/lesson-row';
+import { VideoForm } from '@/components/editor/video-form';
+import { lessonNumber, LessonRow } from '@/components/lesson-row';
+import { VideoRow } from '@/components/video-row';
 import { AppColors } from '@/constants/app-colors';
 import { confirmAsync } from '@/lib/confirm';
 import { errorMessage, useApi, useLoader } from '@/lib/hooks';
-import type { Course } from '@/lib/types';
+import type { Course, CourseItem, CourseVideo } from '@/lib/types';
+import { newVideoDraft, saveVideo, videoToDraft } from '@/lib/video-drafts';
 
-// Управление курсом: название/описание, уроки (пройти, изменить, удалить), новый урок, удаление курса.
-// Личные курсы пользователь проходит отсюда же — на главной их нет.
+// какое видео сейчас открыто в форме: новое (в конец курса) или существующее
+type VideoEditing = { mode: 'new' } | { mode: 'edit'; videoId: number };
+
+// Управление курсом: название/описание, уроки и видео одним списком (порядок, пройти, изменить, удалить),
+// новый урок или видео, удаление курса. Личные курсы пользователь проходит отсюда же — на главной их нет.
 export default function ManageCourseScreen() {
     const { courseId } = useLocalSearchParams<{ courseId: string }>();
     const id = Number(courseId);
     const api = useApi();
 
-    const { data, error, loading, reload } = useLoader(async () => {
-        const [course, lessons] = await Promise.all([api.courses.get(id), api.lessons.listByCourse(id)]);
-        return { course, lessons };
+    const { data, error, loading, reload, setData } = useLoader(async () => {
+        const [course, items] = await Promise.all([api.courses.get(id), api.courses.items(id)]);
+        return { course, items };
     });
 
     const [actionError, setActionError] = useState<string | null>(null);
+    const [videoEditing, setVideoEditing] = useState<VideoEditing | null>(null);
+
+    const run = async (action: () => Promise<void>) => {
+        setActionError(null);
+        try {
+            await action();
+        } catch (e) {
+            setActionError(errorMessage(e));
+            await reload();
+        }
+    };
+
+    // index — место в общем списке уроков и видео; бэкенд сдвигает остальные элементы
+    const move = (item: CourseItem, index: number, delta: -1 | 1) => run(async () => {
+        const items = await api.courses.moveItem(id, item, index + delta);
+        if (data) setData({ ...data, items });
+    });
 
     const deleteLesson = async (lessonId: number, title: string) => {
         if (!(await confirmAsync('Удалить урок?', `«${title}» и все его вопросы будут удалены.`))) return;
-        try {
+        await run(async () => {
             await api.lessons.remove(lessonId);
             await reload();
-        } catch (e) {
-            setActionError(errorMessage(e));
-        }
+        });
+    };
+
+    const deleteVideo = async (video: CourseVideo) => {
+        if (!(await confirmAsync('Удалить видео?', `«${video.title}» будет удалено вместе с файлом.`))) return;
+        await run(async () => {
+            await api.videos.remove(id, video.id);
+            await reload();
+        });
+    };
+
+    const afterVideoSave = async () => {
+        setVideoEditing(null);
+        await reload();
     };
 
     const deleteCourse = async () => {
@@ -73,39 +108,120 @@ export default function ManageCourseScreen() {
 
                             <CourseForm key={data.course.id} course={data.course} onSaved={reload} />
 
-                            <SectionTitle>Уроки</SectionTitle>
+                            <SectionTitle>Уроки и видео</SectionTitle>
+                            <Muted style={styles.hint}>
+                                Ученик видит уроки и видео в этом порядке — стрелками можно поставить видео между уроками.
+                            </Muted>
 
-                            {data.lessons.length === 0 ? (
-                                <EmptyState icon="book-outline" title="Уроков пока нет" text="Добавьте первый урок ниже" />
+                            {data.items.length === 0 ? (
+                                <EmptyState icon="book-outline" title="Уроков пока нет" text="Добавьте первый урок или видео ниже" />
                             ) : null}
 
-                            {data.lessons.map((lesson, index) => (
-                                <LessonRow
-                                    key={lesson.id}
-                                    lesson={lesson}
-                                    index={index}
-                                    onPress={() => router.push({ pathname: '/manage/lesson/[lessonId]', params: { lessonId: lesson.id } })}
-                                    actions={(
-                                        <>
-                                            <IconButton
-                                                icon="play-circle"
-                                                label="Пройти урок"
-                                                color={AppColors.accent}
-                                                disabled={lesson.itemCount === 0}
-                                                onPress={() => router.push({ pathname: '/lesson/[lessonId]', params: { lessonId: lesson.id } })}
+                            {data.items.map((item, index) => {
+                                const arrows = (
+                                    <>
+                                        <IconButton icon="arrow-up" label="Выше" onPress={() => move(item, index, -1)} disabled={index === 0} />
+                                        <IconButton
+                                            icon="arrow-down"
+                                            label="Ниже"
+                                            onPress={() => move(item, index, 1)}
+                                            disabled={index === data.items.length - 1}
+                                        />
+                                    </>
+                                );
+
+                                if (item.kind === 'VIDEO') {
+                                    if (videoEditing?.mode === 'edit' && videoEditing.videoId === item.id) {
+                                        return (
+                                            <VideoForm
+                                                key={`VIDEO-${item.id}`}
+                                                initial={videoToDraft(item)}
+                                                isNew={false}
+                                                onCancel={() => setVideoEditing(null)}
+                                                onSave={async (draft) => {
+                                                    await saveVideo(api, id, item, draft);
+                                                    await afterVideoSave();
+                                                }}
                                             />
-                                            <IconButton
-                                                icon="trash-outline"
-                                                label="Удалить урок"
-                                                color={AppColors.error}
-                                                onPress={() => deleteLesson(lesson.id, lesson.title)}
-                                            />
-                                        </>
-                                    )}
-                                />
-                            ))}
+                                        );
+                                    }
+                                    return (
+                                        <VideoRow
+                                            key={`VIDEO-${item.id}`}
+                                            video={item}
+                                            onPress={() => setVideoEditing({ mode: 'edit', videoId: item.id })}
+                                            actions={(
+                                                <>
+                                                    {arrows}
+                                                    <IconButton
+                                                        icon="play-circle"
+                                                        label="Смотреть видео"
+                                                        color={AppColors.blue}
+                                                        disabled={item.videoUrl === null}
+                                                        onPress={() => router.push({ pathname: '/video/[videoId]', params: { videoId: item.id, courseId: id } })}
+                                                    />
+                                                    <IconButton
+                                                        icon="trash-outline"
+                                                        label="Удалить видео"
+                                                        color={AppColors.error}
+                                                        onPress={() => deleteVideo(item)}
+                                                    />
+                                                </>
+                                            )}
+                                        />
+                                    );
+                                }
+
+                                return (
+                                    <LessonRow
+                                        key={`LESSON-${item.id}`}
+                                        lesson={item}
+                                        index={lessonNumber(data.items, item)}
+                                        onPress={() => router.push({ pathname: '/manage/lesson/[lessonId]', params: { lessonId: item.id } })}
+                                        actions={(
+                                            <>
+                                                {arrows}
+                                                <IconButton
+                                                    icon="play-circle"
+                                                    label="Пройти урок"
+                                                    color={AppColors.accent}
+                                                    disabled={item.itemCount === 0}
+                                                    onPress={() => router.push({ pathname: '/lesson/[lessonId]', params: { lessonId: item.id } })}
+                                                />
+                                                <IconButton
+                                                    icon="trash-outline"
+                                                    label="Удалить урок"
+                                                    color={AppColors.error}
+                                                    onPress={() => deleteLesson(item.id, item.title)}
+                                                />
+                                            </>
+                                        )}
+                                    />
+                                );
+                            })}
 
                             <NewLessonForm courseId={id} onError={setActionError} />
+
+                            <View style={styles.addVideo}>
+                                {videoEditing?.mode === 'new' ? (
+                                    <VideoForm
+                                        initial={newVideoDraft()}
+                                        isNew
+                                        onCancel={() => setVideoEditing(null)}
+                                        onSave={async (draft) => {
+                                            await saveVideo(api, id, null, draft);
+                                            await afterVideoSave();
+                                        }}
+                                    />
+                                ) : (
+                                    <Button
+                                        title="Добавить видео"
+                                        icon="videocam-outline"
+                                        variant="secondary"
+                                        onPress={() => setVideoEditing({ mode: 'new' })}
+                                    />
+                                )}
+                            </View>
 
                             <View style={styles.danger}>
                                 <Button title="Удалить курс" icon="trash-outline" variant="danger" onPress={deleteCourse} />
@@ -202,6 +318,13 @@ const styles = StyleSheet.create({
     screen: {
         flex: 1,
         backgroundColor: AppColors.background,
+    },
+    hint: {
+        marginTop: -4,
+        marginBottom: 12,
+    },
+    addVideo: {
+        marginTop: 12,
     },
     danger: {
         marginTop: 40,

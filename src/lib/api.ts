@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import type { AnswerOption, Course, Lesson, LessonMessage, LessonSummary, Page, Question, QuestionType, Role, UserProfile } from '@/lib/types';
+import type { AnswerOption, Course, CourseItem, CourseVideo, Lesson, LessonMessage, LessonSummary, Page, Question, QuestionType, Role, UserProfile } from '@/lib/types';
 import type { PickedFile } from '@/lib/files';
 import { uploadFile } from '@/lib/upload';
 
@@ -104,7 +104,7 @@ function parseResponse<T>(status: number, text: string): T {
 // Ошибки FileStorageService на бэкенде — по-русски и с подсказкой, что делать
 function uploadErrorMessage(e: ApiError): string {
     if (e.status === 413 || e.message === 'File too large') {
-        return 'Файл слишком большой: картинка — до 10 МБ, аудио — до 20 МБ';
+        return 'Файл слишком большой: картинка — до 10 МБ, аудио — до 20 МБ, видео — до 500 МБ';
     }
     if (e.message.startsWith('Invalid file type')) return 'Этот формат файла не поддерживается';
     if (e.message === 'File is empty') return 'Файл пустой';
@@ -127,6 +127,8 @@ export const authApi = {
 export type CourseInput = { title: string; description: string | null };
 
 export type LessonInput = { title: string; description: string | null };
+
+export type VideoInput = { title: string; description: string | null };
 
 export type OptionInput = { text: string; correct: boolean; correctPosition: number | null };
 
@@ -179,6 +181,28 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
             update: (id: number, input: Partial<CourseInput>) =>
                 call<Course>(`/api/courses/${id}`, { method: 'PATCH', body: input }),
             remove: (id: number) => call<void>(`/api/courses/${id}`, { method: 'DELETE' }),
+            // уроки и видео курса одним списком по порядку
+            items: (id: number) => call<CourseItem[]>(`/api/courses/${id}/items`),
+            // переместить урок или видео на новую позицию; возвращает новый порядок
+            moveItem: (id: number, item: CourseItem, position: number) =>
+                call<CourseItem[]>(`/api/courses/${id}/items/position`, {
+                    method: 'PATCH',
+                    body: { kind: item.kind, id: item.id, position },
+                }),
+        },
+
+        videos: {
+            get: (courseId: number, id: number) => call<CourseVideo>(`/api/courses/${courseId}/videos/${id}`),
+            create: (courseId: number, input: VideoInput) =>
+                call<CourseVideo>(`/api/courses/${courseId}/videos`, { method: 'POST', body: input }),
+            update: (courseId: number, id: number, input: Partial<VideoInput>) =>
+                call<CourseVideo>(`/api/courses/${courseId}/videos/${id}`, { method: 'PATCH', body: input }),
+            remove: (courseId: number, id: number) =>
+                call<void>(`/api/courses/${courseId}/videos/${id}`, { method: 'DELETE' }),
+            uploadFile: (courseId: number, id: number, file: PickedFile) =>
+                upload(`/api/courses/${courseId}/videos/${id}/file`, file),
+            removeFile: (courseId: number, id: number) =>
+                call<void>(`/api/courses/${courseId}/videos/${id}/file`, { method: 'DELETE' }),
         },
 
         lessons: {

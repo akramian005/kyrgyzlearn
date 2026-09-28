@@ -106,7 +106,7 @@ function toOptionInputs(draft: QuestionDraft): OptionInput[] {
         : { text: option.text.trim(), correct: option.correct, correctPosition: null });
 }
 
-async function applyMedia(draft: MediaDraft, upload: (file: NonNullable<MediaDraft['picked']>) => Promise<unknown>, remove: () => Promise<unknown>) {
+export async function applyMedia(draft: MediaDraft, upload: (file: NonNullable<MediaDraft['picked']>) => Promise<unknown>, remove: () => Promise<unknown>) {
     // при загрузке бэкенд сам удаляет старый файл
     if (draft.picked) {
         await upload(draft.picked);

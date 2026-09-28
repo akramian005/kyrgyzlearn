@@ -27,7 +27,10 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward' }: 
                 {course.description ? (
                     <Text style={styles.description} numberOfLines={2}>{course.description}</Text>
                 ) : null}
-                <Text style={styles.meta}>{lessonsLabel(course.lessonCount)}</Text>
+                <Text style={styles.meta}>
+                    {lessonsLabel(course.lessonCount)}
+                    {course.videoCount > 0 ? ` · ${course.videoCount} видео` : ''}
+                </Text>
             </View>
 
             <Ionicons name={actionIcon} size={22} color={AppColors.textSecondary} />

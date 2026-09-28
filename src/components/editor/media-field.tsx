@@ -3,11 +3,12 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AudioButton } from '@/components/audio-button';
-import { Button } from '@/components/app-ui';
+import { Button, type IconName } from '@/components/app-ui';
+import { VideoPlayer } from '@/components/video-player';
 import { AppColors } from '@/constants/app-colors';
 import { pickFile, type MediaKind, type PickedFile } from '@/lib/files';
 
-// Состояние картинки/аудио в форме: что уже есть на сервере и что пользователь поменял
+// Состояние картинки/аудио/видео в форме: что уже есть на сервере и что пользователь поменял
 export type MediaDraft = {
     url: string | null;         // текущий файл на сервере
     picked: PickedFile | null;  // новый файл, загрузится при сохранении
@@ -20,6 +21,18 @@ export function mediaPreview(draft: MediaDraft): string | null {
     if (draft.picked) return draft.picked.uri;
     return draft.removed ? null : draft.url;
 }
+
+const PICK_LABELS: Record<MediaKind, string> = {
+    image: 'Выбрать картинку',
+    audio: 'Выбрать аудио',
+    video: 'Выбрать видео',
+};
+
+const PICK_ICONS: Record<MediaKind, IconName> = {
+    image: 'image-outline',
+    audio: 'musical-notes-outline',
+    video: 'videocam-outline',
+};
 
 export function MediaField({ kind, label, draft, onChange }: {
     kind: MediaKind;
@@ -44,6 +57,8 @@ export function MediaField({ kind, label, draft, onChange }: {
                 <View style={styles.previewRow}>
                     {kind === 'image' ? (
                         <Image source={{ uri: preview }} style={styles.image} contentFit="cover" />
+                    ) : kind === 'video' ? (
+                        <VideoPlayer key={preview} url={preview} style={styles.video} />
                     ) : (
                         <AudioButton key={preview} url={preview} />
                     )}
@@ -53,8 +68,8 @@ export function MediaField({ kind, label, draft, onChange }: {
 
             <View style={styles.buttons}>
                 <Button
-                    title={preview ? 'Заменить' : kind === 'image' ? 'Выбрать картинку' : 'Выбрать аудио'}
-                    icon={kind === 'image' ? 'image-outline' : 'musical-notes-outline'}
+                    title={preview ? 'Заменить' : PICK_LABELS[kind]}
+                    icon={PICK_ICONS[kind]}
                     variant="secondary"
                     small
                     onPress={choose}
@@ -77,6 +92,7 @@ const styles = StyleSheet.create({
     },
     previewRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         alignItems: 'center',
         gap: 10,
     },
@@ -85,6 +101,9 @@ const styles = StyleSheet.create({
         height: 90,
         borderRadius: 10,
         backgroundColor: AppColors.surfaceRaised,
+    },
+    video: {
+        maxWidth: 360,
     },
     fileName: {
         flexShrink: 1,

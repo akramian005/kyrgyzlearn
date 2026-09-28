@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 
-export type MediaKind = 'image' | 'audio';
+export type MediaKind = 'image' | 'audio' | 'video';
 
 export type PickedFile = {
     uri: string;
@@ -10,7 +10,7 @@ export type PickedFile = {
     file?: File;
 };
 
-// бэкенд проверяет Content-Type (image/* или audio/*), а пикер иногда его не знает
+// бэкенд проверяет Content-Type (image/*, audio/* или video/*), а пикер иногда его не знает
 // или отдаёт неподходящий (например, video/3gpp для записи диктофона на Android)
 const MIME_BY_EXTENSION: Record<string, string> = {
     png: 'image/png',
@@ -43,14 +43,33 @@ const MIME_BY_EXTENSION: Record<string, string> = {
     wma: 'audio/x-ms-wma',
 };
 
+// у видео свои типы: те же расширения (mp4, webm, 3gp) выше записаны как аудио
+const VIDEO_MIME_BY_EXTENSION: Record<string, string> = {
+    mp4: 'video/mp4',
+    m4v: 'video/x-m4v',
+    mov: 'video/quicktime',
+    webm: 'video/webm',
+    mkv: 'video/x-matroska',
+    avi: 'video/x-msvideo',
+    '3gp': 'video/3gpp',
+    '3gpp': 'video/3gpp',
+};
+
+const DEFAULT_MIME: Record<MediaKind, string> = {
+    image: 'image/jpeg',
+    audio: 'audio/mpeg',
+    video: 'video/mp4',
+};
+
 function guessMimeType(name: string, kind: MediaKind): string {
     const extension = name.split('.').pop()?.toLowerCase() ?? '';
-    return MIME_BY_EXTENSION[extension] ?? (kind === 'image' ? 'image/jpeg' : 'audio/mpeg');
+    const known = kind === 'video' ? VIDEO_MIME_BY_EXTENSION[extension] : MIME_BY_EXTENSION[extension];
+    return known ?? DEFAULT_MIME[kind];
 }
 
 export async function pickFile(kind: MediaKind): Promise<PickedFile | null> {
     const result = await DocumentPicker.getDocumentAsync({
-        type: kind === 'image' ? 'image/*' : 'audio/*',
+        type: `${kind}/*`,
         copyToCacheDirectory: true,
         base64: false,
     });

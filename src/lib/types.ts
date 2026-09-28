@@ -28,9 +28,11 @@ export type Course = {
     type: CourseType;
     ownerId: number | null;
     lessonCount: number;
+    videoCount: number;
 };
 
 export type LessonSummary = {
+    kind: 'LESSON';
     id: number;
     courseId: number;
     title: string;
@@ -38,6 +40,21 @@ export type LessonSummary = {
     position: number;
     itemCount: number;
 };
+
+// Видео курса: стоит в общем списке курса между уроками
+export type CourseVideo = {
+    kind: 'VIDEO';
+    id: number;
+    courseId: number;
+    position: number;
+    title: string;
+    description: string | null;
+    // null — файл ещё не загружен
+    videoUrl: string | null;
+};
+
+// элемент курса: уроки и видео идут одним списком с общей нумерацией position
+export type CourseItem = LessonSummary | CourseVideo;
 
 export type AnswerOption = {
     id: number;

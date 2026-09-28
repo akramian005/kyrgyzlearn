@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
-import type { LessonSummary } from '@/lib/types';
+import type { CourseItem, LessonSummary } from '@/lib/types';
 
 export function itemsLabel(count: number): string {
     const mod10 = count % 10;
@@ -11,6 +11,11 @@ export function itemsLabel(count: number): string {
     if (mod10 === 1 && mod100 !== 11) return `${count} шаг`;
     if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} шага`;
     return `${count} шагов`;
+}
+
+// номер урока в курсе считается только по урокам: видео между ними нумерацию не сбивают
+export function lessonNumber(items: CourseItem[], lesson: LessonSummary): number {
+    return items.filter((item) => item.kind === 'LESSON').indexOf(lesson);
 }
 
 // Строка урока: номер в кружке, название, число шагов (вопросы + сообщения) и действия справа.
