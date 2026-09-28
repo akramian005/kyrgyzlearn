@@ -2,20 +2,17 @@ import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { useSession } from '@/auth/session';
 import { Button, EmptyState, ErrorBanner, LoadingView, Page, SectionTitle, Title } from '@/components/app-ui';
 import { CourseCard } from '@/components/course-card';
 import { useApi, useLoader } from '@/lib/hooks';
 
-// «Прочее»: управление своими курсами (аккаунт и выход — во вкладке «Профиль»).
-// Админ управляет официальными курсами, пользователь — своими личными (их видит только он).
+// «Прочее»: управление своими личными курсами (аккаунт и выход — во вкладке «Профиль»).
+// Официальные курсы здесь не редактируются — они лежат файлами на бэкенде (content/official).
 export default function MoreScreen() {
-    const { session } = useSession();
     const api = useApi();
     const { data: courses, error, loading, reload } = useLoader(() => api.courses.list());
 
-    const isAdmin = session?.role === 'ADMIN';
-    const manageable = (courses ?? []).filter((course) => course.type === (isAdmin ? 'OFFICIAL' : 'USER'));
+    const manageable = (courses ?? []).filter((course) => course.type === 'USER');
 
     if (loading && !courses) return <LoadingView />;
 
@@ -24,7 +21,7 @@ export default function MoreScreen() {
             <Title>Прочее</Title>
 
             <View style={styles.sectionRow}>
-                <SectionTitle>{isAdmin ? 'Официальные курсы' : 'Мои курсы'}</SectionTitle>
+                <SectionTitle>Мои курсы</SectionTitle>
                 <Button title="Создать курс" icon="add" small onPress={() => router.push('/manage/new')} />
             </View>
 
@@ -34,9 +31,7 @@ export default function MoreScreen() {
                 <EmptyState
                     icon="create-outline"
                     title="У вас пока нет курсов"
-                    text={isAdmin
-                        ? 'Созданные вами курсы увидят все пользователи на главной'
-                        : 'Создайте свой курс — его будете видеть только вы'}
+                    text="Создайте свой курс — его смогут найти в поиске и другие пользователи"
                 />
             ) : null}
 

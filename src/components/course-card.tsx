@@ -15,7 +15,8 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward', sh
     actionIcon?: 'chevron-forward' | 'create-outline';
     showAuthor?: boolean;
 }) {
-    const color = ICON_COLORS[course.id % ICON_COLORS.length];
+    // у официальных курсов id отрицательные — берём по модулю
+    const color = ICON_COLORS[Math.abs(course.id) % ICON_COLORS.length];
 
     return (
         <Card onPress={onPress} style={styles.card}>

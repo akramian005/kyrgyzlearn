@@ -2,14 +2,12 @@ import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
-import { useSession } from '@/auth/session';
 import { Button, ErrorBanner, Muted, Page, ScreenHeader, TextField } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
 import { errorMessage, useApi } from '@/lib/hooks';
 
-// Создание курса. Тип (официальный/личный) бэкенд выбирает сам по роли автора
+// Создание личного курса (официальные курсы лежат файлами на бэкенде и через приложение не создаются)
 export default function NewCourseScreen() {
-    const { session } = useSession();
     const api = useApi();
 
     const [title, setTitle] = useState('');
@@ -40,9 +38,7 @@ export default function NewCourseScreen() {
             <ScreenHeader title="Новый курс" />
             <Page>
                 <Muted style={{ marginBottom: 20 }}>
-                    {session?.role === 'ADMIN'
-                        ? 'Курс будет официальным — его увидят все пользователи на главной.'
-                        : 'Курс будет личным — его видите только вы.'}
+                    Курс будет личным: менять его можете только вы, а найти и пройти через поиск — любой пользователь.
                 </Muted>
 
                 <ErrorBanner message={error} />
