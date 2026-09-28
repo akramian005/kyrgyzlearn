@@ -31,6 +31,10 @@ export type Course = {
     ownerName: string | null;
     lessonCount: number;
     videoCount: number;
+    // сколько уроков пройдено и видео просмотрено текущим пользователем
+    completedItemCount: number;
+    // сколько уроков и видео идут в прогресс (без пустых уроков и видео без файла)
+    totalItemCount: number;
     // курс в сохранённых у текущего пользователя
     saved: boolean;
 };
@@ -43,6 +47,14 @@ export type LessonSummary = {
     description: string | null;
     position: number;
     itemCount: number;
+    // урок пройден текущим пользователем
+    completed: boolean;
+};
+
+// Сводка прогресса для профиля
+export type Progress = {
+    completedLessons: number;
+    completedCourses: number;
 };
 
 // Видео курса: стоит в общем списке курса между уроками
@@ -55,6 +67,8 @@ export type CourseVideo = {
     description: string | null;
     // null — файл ещё не загружен
     videoUrl: string | null;
+    // текущий пользователь уже открывал это видео
+    watched: boolean;
 };
 
 // элемент курса: уроки и видео идут одним списком с общей нумерацией position

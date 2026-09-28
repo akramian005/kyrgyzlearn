@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import type { AnswerOption, Course, CourseItem, CourseVideo, Lesson, LessonMessage, LessonSummary, Page, Question, QuestionType, Role, UserProfile } from '@/lib/types';
+import type { AnswerOption, Course, CourseItem, CourseVideo, Lesson, LessonMessage, LessonSummary, Page, Progress, Question, QuestionType, Role, UserProfile } from '@/lib/types';
 import type { PickedFile } from '@/lib/files';
 import { uploadFile } from '@/lib/upload';
 
@@ -192,6 +192,16 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
                     method: 'PATCH',
                     body: { kind: item.kind, id: item.id, position },
                 }),
+        },
+
+        // прогресс текущего пользователя: пройденные уроки и курсы
+        progress: {
+            get: () => call<Progress>('/api/progress'),
+            // повторная отметка уже пройденного урока — не ошибка
+            completeLesson: (lessonId: number) => call<void>(`/api/progress/lessons/${lessonId}`, { method: 'PUT' }),
+            // видео открыли — считается просмотренным
+            watchVideo: (courseId: number, videoId: number) =>
+                call<void>(`/api/progress/courses/${courseId}/videos/${videoId}`, { method: 'PUT' }),
         },
 
         // сохранённые курсы текущего пользователя

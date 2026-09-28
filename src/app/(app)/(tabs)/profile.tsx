@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -11,16 +12,18 @@ import { ApiError } from '@/lib/api';
 import { confirmAsync } from '@/lib/confirm';
 import { pickFile } from '@/lib/files';
 import { errorMessage, useApi, useLoader } from '@/lib/hooks';
-import type { Course, UserProfile } from '@/lib/types';
+import type { Course, Progress, UserProfile } from '@/lib/types';
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, validateEmail, validateName, validateNewPassword } from '@/lib/validation';
 
-// «Профиль»: сохранённые курсы, аватар, имя, почта, пароль и выход из аккаунта
+// «Профиль»: прогресс, сохранённые курсы, аватар, имя, почта, пароль и выход из аккаунта
 export default function ProfileScreen() {
     const { session, signOut } = useSession();
     const api = useApi();
     const { data: profile, error, loading, reload, setData } = useLoader(() => api.profile.get());
     // отдельный загрузчик: курс могли сохранить или убрать на экране курса — при возврате список обновится
     const saved = useLoader(() => api.saved.list());
+    // после урока при возврате в профиль счётчики обновятся
+    const progress = useLoader(() => api.progress.get());
 
     const logout = async () => {
         if (await confirmAsync('Выйти из аккаунта?', 'Чтобы вернуться, нужно будет снова ввести email и пароль', 'Выйти')) {
@@ -38,6 +41,7 @@ export default function ProfileScreen() {
         <Page onRefresh={() => {
             void reload();
             void saved.reload();
+            void progress.reload();
         }}>
             <Title>Профиль</Title>
 
@@ -52,6 +56,8 @@ export default function ProfileScreen() {
                 </View>
             </Card>
 
+            <ProgressStats progress={progress.data} error={progress.error} />
+
             <SavedCourses courses={saved.data} error={saved.error} />
 
             {profile ? (
@@ -65,6 +71,29 @@ export default function ProfileScreen() {
 
             <Button title="Выйти" icon="log-out-outline" variant="danger" onPress={logout} style={styles.logout} />
         </Page>
+    );
+}
+
+// ---------- Прогресс ----------
+
+// курс пройден, когда пройдены все его уроки (видео не считаются)
+function ProgressStats({ progress, error }: { progress: Progress | undefined; error: string | null }) {
+    return (
+        <>
+            <ErrorBanner message={error} />
+            <View style={styles.stats}>
+                <Card style={styles.stat}>
+                    <Ionicons name="checkmark-circle" size={28} color={AppColors.gold} />
+                    <Text style={styles.statValue}>{progress?.completedLessons ?? '—'}</Text>
+                    <Text style={styles.statLabel}>уроков пройдено</Text>
+                </Card>
+                <Card style={styles.stat}>
+                    <Ionicons name="trophy" size={28} color={AppColors.gold} />
+                    <Text style={styles.statValue}>{progress?.completedCourses ?? '—'}</Text>
+                    <Text style={styles.statLabel}>курсов пройдено</Text>
+                </Card>
+            </View>
+        </>
     );
 }
 
@@ -395,6 +424,25 @@ function profileErrorMessage(e: unknown): string {
 }
 
 const styles = StyleSheet.create({
+    stats: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    stat: {
+        flex: 1,
+        alignItems: 'center',
+        gap: 2,
+    },
+    statValue: {
+        color: AppColors.text,
+        fontSize: 26,
+        fontWeight: '800',
+    },
+    statLabel: {
+        color: AppColors.textSecondary,
+        fontSize: 13,
+        fontWeight: '600',
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',

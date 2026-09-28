@@ -11,7 +11,7 @@ import { QuestionStep } from '@/components/player/question-step';
 import { AppColors } from '@/constants/app-colors';
 import { correctAnswerText, isAnswerCorrect } from '@/lib/answers';
 import { confirmAsync } from '@/lib/confirm';
-import { useApi, useLoader } from '@/lib/hooks';
+import { errorMessage, useApi, useLoader } from '@/lib/hooks';
 import type { Lesson, LessonItem } from '@/lib/types';
 
 const PLAYER_MAX_WIDTH = 640;
@@ -37,6 +37,7 @@ export default function LessonPlayerScreen() {
 }
 
 function Player({ lesson }: { lesson: Lesson }) {
+    const api = useApi();
     const insets = useSafeAreaInsets();
     const total = lesson.items.length;
     const questionCount = lesson.items.filter((item) => item.kind === 'QUESTION').length;
@@ -57,6 +58,16 @@ function Player({ lesson }: { lesson: Lesson }) {
     useEffect(() => {
         progress.set(withTiming(total === 0 ? 1 : done / total, { duration: 400 }));
     }, [done, total, progress]);
+
+    // урок дошли до конца — отмечаем в прогрессе (повторное прохождение бэкенд просто игнорирует)
+    const [saveError, setSaveError] = useState<string | null>(null);
+    useEffect(() => {
+        if (!finished) return;
+        api.progress.completeLesson(lesson.id).then(
+            () => setSaveError(null),
+            (e) => setSaveError(`Прогресс не сохранился: ${errorMessage(e)}`),
+        );
+    }, [finished, api, lesson.id]);
 
     const shakeX = useSharedValue(0);
     const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
@@ -85,6 +96,7 @@ function Player({ lesson }: { lesson: Lesson }) {
                             С первого раза: {firstTry} из {questionCount}
                         </Text>
                     ) : null}
+                    <ErrorBanner message={saveError} />
                 </View>
                 <View style={[styles.footer, footerPadding]}>
                     <View style={styles.footerInner}>

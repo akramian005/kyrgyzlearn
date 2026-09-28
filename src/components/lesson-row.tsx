@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -19,14 +20,18 @@ export function lessonNumber(items: CourseItem[], lesson: LessonSummary): number
 }
 
 // Строка урока: номер в кружке, название, число шагов (вопросы + сообщения) и действия справа.
+// showProgress — при прохождении курса у пройденного урока вместо номера золотая галочка
+// (в редакторе курса не нужен: там важнее номер).
 // Нажимается только левая часть: кнопки действий не должны лежать внутри другой кнопки (в вебе это <button> в <button>)
-export function LessonRow({ lesson, index, onPress, actions }: {
+export function LessonRow({ lesson, index, onPress, actions, showProgress = false }: {
     lesson: LessonSummary;
     index: number;
     onPress?: () => void;
     actions?: ReactNode;
+    showProgress?: boolean;
 }) {
     const empty = lesson.itemCount === 0;
+    const completed = showProgress && lesson.completed;
 
     return (
         <Card style={styles.row}>
@@ -36,8 +41,10 @@ export function LessonRow({ lesson, index, onPress, actions }: {
                 onPress={onPress}
                 style={({ pressed }) => [styles.main, pressed && styles.pressed]}
             >
-                <View style={[styles.number, empty && styles.numberEmpty]}>
-                    <Text style={styles.numberText}>{index + 1}</Text>
+                <View style={[styles.number, empty && styles.numberEmpty, completed && styles.numberCompleted]}>
+                    {completed
+                        ? <Ionicons name="checkmark" size={26} color="#fff" />
+                        : <Text style={styles.numberText}>{index + 1}</Text>}
                 </View>
 
                 <View style={styles.body}>
@@ -45,7 +52,10 @@ export function LessonRow({ lesson, index, onPress, actions }: {
                     {lesson.description ? (
                         <Text style={styles.description} numberOfLines={2}>{lesson.description}</Text>
                     ) : null}
-                    <Text style={styles.meta}>{empty ? 'Пока пустой' : itemsLabel(lesson.itemCount)}</Text>
+                    <Text style={styles.meta}>
+                        {completed ? <Text style={styles.completed}>Пройден · </Text> : null}
+                        {empty ? 'Пока пустой' : itemsLabel(lesson.itemCount)}
+                    </Text>
                 </View>
             </Pressable>
 
@@ -80,6 +90,9 @@ const styles = StyleSheet.create({
     numberEmpty: {
         backgroundColor: AppColors.border,
     },
+    numberCompleted: {
+        backgroundColor: AppColors.gold,
+    },
     numberText: {
         color: '#fff',
         fontWeight: '800',
@@ -102,6 +115,9 @@ const styles = StyleSheet.create({
         color: AppColors.textSecondary,
         fontSize: 13,
         fontWeight: '600',
+    },
+    completed: {
+        color: AppColors.gold,
     },
     actions: {
         flexDirection: 'row',

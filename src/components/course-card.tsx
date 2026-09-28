@@ -36,6 +36,9 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward', sh
                     {lessonsLabel(course.lessonCount)}
                     {course.videoCount > 0 ? ` · ${course.videoCount} видео` : ''}
                 </Text>
+                {courseProgressLabel(course) ? (
+                    <Text style={styles.progress}>{courseProgressLabel(course)}</Text>
+                ) : null}
             </View>
 
             <Ionicons name={actionIcon} size={22} color={AppColors.textSecondary} />
@@ -47,6 +50,13 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward', sh
 export function courseAuthor(course: Course): string {
     if (course.type === 'OFFICIAL') return 'Официальный курс KyrgyzLearn';
     return `Автор: ${course.ownerName?.trim() || `пользователь #${course.ownerId}`}`;
+}
+
+// «Курс пройден» / «Пройдено 2 из 5» (уроки и видео вместе); null — к курсу ещё не приступали
+export function courseProgressLabel(course: Course): string | null {
+    if (course.completedItemCount === 0 || course.totalItemCount === 0) return null;
+    if (course.completedItemCount >= course.totalItemCount) return 'Курс пройден';
+    return `Пройдено ${course.completedItemCount} из ${course.totalItemCount}`;
 }
 
 export function lessonsLabel(count: number): string {
@@ -98,5 +108,10 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
         marginTop: 2,
+    },
+    progress: {
+        color: AppColors.gold,
+        fontSize: 13,
+        fontWeight: '700',
     },
 });

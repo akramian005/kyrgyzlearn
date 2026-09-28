@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 
 import { Button, EmptyState, ErrorBanner, IconButton, LoadingView, Muted, Page, ScreenHeader, Title } from '@/components/app-ui';
-import { courseAuthor } from '@/components/course-card';
+import { courseAuthor, courseProgressLabel } from '@/components/course-card';
 import { lessonNumber, LessonRow } from '@/components/lesson-row';
 import { VideoRow } from '@/components/video-row';
 import { AppColors } from '@/constants/app-colors';
@@ -34,6 +34,11 @@ export default function CourseScreen() {
                         <>
                             <Title>{data.course.title}</Title>
                             <Muted style={{ marginTop: -8, marginBottom: 8 }}>{courseAuthor(data.course)}</Muted>
+                            {courseProgressLabel(data.course) ? (
+                                <Muted style={{ marginBottom: 8, color: AppColors.gold, fontWeight: '700' }}>
+                                    {courseProgressLabel(data.course)}
+                                </Muted>
+                            ) : null}
                             {data.course.description ? (
                                 <Muted style={{ marginBottom: 12 }}>{data.course.description}</Muted>
                             ) : null}
@@ -105,6 +110,7 @@ function CourseItemRow({ item, items, courseId }: { item: CourseItem; items: Cou
         return (
             <VideoRow
                 video={item}
+                showProgress
                 onPress={watch}
                 actions={watch
                     ? <IconButton icon="play-circle" label="Смотреть видео" color={AppColors.blue} onPress={watch} />
@@ -120,6 +126,7 @@ function CourseItemRow({ item, items, courseId }: { item: CourseItem; items: Cou
         <LessonRow
             lesson={item}
             index={lessonNumber(items, item)}
+            showProgress
             onPress={play}
             actions={play
                 ? <IconButton icon="play-circle" label="Начать урок" color={AppColors.accent} onPress={play} />

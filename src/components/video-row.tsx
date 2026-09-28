@@ -7,13 +7,16 @@ import { AppColors } from '@/constants/app-colors';
 import type { CourseVideo } from '@/lib/types';
 
 // Строка видео в списке курса — в пару к LessonRow: значок вместо номера, название и действия справа.
+// showProgress — при прохождении курса у просмотренного видео золотой значок с галочкой (в редакторе не нужен).
 // Нажимается только левая часть: кнопки действий не должны лежать внутри другой кнопки (в вебе это <button> в <button>)
-export function VideoRow({ video, onPress, actions }: {
+export function VideoRow({ video, onPress, actions, showProgress = false }: {
     video: CourseVideo;
     onPress?: () => void;
     actions?: ReactNode;
+    showProgress?: boolean;
 }) {
     const empty = video.videoUrl === null;
+    const watched = showProgress && video.watched && !empty;
 
     return (
         <Card style={styles.row}>
@@ -23,8 +26,8 @@ export function VideoRow({ video, onPress, actions }: {
                 onPress={onPress}
                 style={({ pressed }) => [styles.main, pressed && styles.pressed]}
             >
-                <View style={[styles.icon, empty && styles.iconEmpty]}>
-                    <Ionicons name="videocam" size={20} color="#fff" />
+                <View style={[styles.icon, empty && styles.iconEmpty, watched && styles.iconWatched]}>
+                    <Ionicons name={watched ? 'checkmark' : 'videocam'} size={watched ? 26 : 20} color="#fff" />
                 </View>
 
                 <View style={styles.body}>
@@ -32,7 +35,10 @@ export function VideoRow({ video, onPress, actions }: {
                     {video.description ? (
                         <Text style={styles.description} numberOfLines={2}>{video.description}</Text>
                     ) : null}
-                    <Text style={styles.meta}>{empty ? 'Видео ещё не загружено' : 'Видео'}</Text>
+                    <Text style={styles.meta}>
+                        {watched ? <Text style={styles.watched}>Просмотрено · </Text> : null}
+                        {empty ? 'Видео ещё не загружено' : 'Видео'}
+                    </Text>
                 </View>
             </Pressable>
 
@@ -67,6 +73,9 @@ const styles = StyleSheet.create({
     iconEmpty: {
         backgroundColor: AppColors.border,
     },
+    iconWatched: {
+        backgroundColor: AppColors.gold,
+    },
     body: {
         flex: 1,
         gap: 2,
@@ -84,6 +93,9 @@ const styles = StyleSheet.create({
         color: AppColors.textSecondary,
         fontSize: 13,
         fontWeight: '600',
+    },
+    watched: {
+        color: AppColors.gold,
     },
     actions: {
         flexDirection: 'row',

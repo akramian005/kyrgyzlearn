@@ -15,4 +15,6 @@ export const AppColors = {
     errorStrong: '#FF4B4B',
     errorBackground: '#3A1818',
     success: '#70E000',
+    // пройденные уроки и курсы
+    gold: '#FFC800',
 };

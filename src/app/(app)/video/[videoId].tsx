@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { EmptyState, ErrorBanner, LoadingView, Muted, Page, ScreenHeader, Title } from '@/components/app-ui';
@@ -14,6 +14,15 @@ export default function VideoScreen() {
 
     // ссылка на файл живёт час — берём свежую при каждом открытии экрана
     const { data: video, error, loading } = useLoader(() => api.videos.get(Number(courseId), Number(videoId)));
+
+    // видео открыли — засчитываем как просмотренное (у видео без файла смотреть нечего)
+    const hasFile = !!video?.videoUrl;
+    useEffect(() => {
+        if (!hasFile) return;
+        api.progress.watchVideo(Number(courseId), Number(videoId)).catch(() => {
+            // не мешаем смотреть: в худшем случае видео просто не отметится в прогрессе
+        });
+    }, [hasFile, api, courseId, videoId]);
 
     return (
         <View style={styles.screen}>
