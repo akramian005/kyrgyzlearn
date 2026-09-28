@@ -9,14 +9,19 @@ const BACKEND_PORT = 8080;
 
 // Адрес бэкенда:
 // 1. EXPO_PUBLIC_API_URL из .env, если задан (например, для прода);
-// 2. в вебе — localhost;
-// 3. на телефоне/эмуляторе — IP компьютера, на котором запущен `expo start`
+// 2. в вебе — тот же компьютер, с которого открыта страница: на компьютере это localhost,
+//    а в браузере телефона — IP компьютера из адресной строки (http://192.168.x.x:8081);
+// 3. в приложении на телефоне/эмуляторе — IP компьютера, на котором запущен `expo start`
 //    (localhost на телефоне указывает на сам телефон, а не на компьютер).
 function resolveApiUrl(): string {
     const fromEnv = process.env.EXPO_PUBLIC_API_URL;
     if (fromEnv) return fromEnv.replace(/\/$/, '');
 
-    if (Platform.OS === 'web') return `http://localhost:${BACKEND_PORT}`;
+    if (Platform.OS === 'web') {
+        // при статическом рендере веба (в Node) window нет
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        return `http://${host}:${BACKEND_PORT}`;
+    }
 
     const devHost = Constants.expoConfig?.hostUri?.split(':')[0];
     return `http://${devHost ?? 'localhost'}:${BACKEND_PORT}`;
