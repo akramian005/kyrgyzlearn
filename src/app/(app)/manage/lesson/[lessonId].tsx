@@ -15,6 +15,8 @@ import {
     TextField,
 } from '@/components/app-ui';
 import { ItemCard } from '@/components/editor/item-card';
+import { MarkdownField } from '@/components/editor/markdown-field';
+import { DESCRIPTION_TEXT_STYLE, markdownToPlain } from '@/components/markdown';
 import { MessageForm } from '@/components/editor/message-form';
 import { QuestionForm } from '@/components/editor/question-form';
 import { AppColors } from '@/constants/app-colors';
@@ -62,7 +64,7 @@ export default function LessonEditorScreen() {
 
     const remove = async (item: LessonItem) => {
         const what = item.kind === 'QUESTION' ? 'вопрос' : 'сообщение';
-        if (!(await confirmAsync(`Удалить ${what}?`, `«${item.text}»`))) return;
+        if (!(await confirmAsync(`Удалить ${what}?`, `«${markdownToPlain(item.text)}»`))) return;
         await run(async () => {
             if (item.kind === 'QUESTION') await api.questions.remove(id, item.id);
             else await api.messages.remove(id, item.id);
@@ -247,7 +249,13 @@ function LessonMetaForm({ lesson, onSaved }: { lesson: Lesson; onSaved: () => Pr
         <View>
             <ErrorBanner message={error} />
             <TextField label="Название урока" value={title} onChangeText={setTitle} />
-            <TextField label="Описание" value={description} onChangeText={setDescription} multiline placeholder="Необязательно" />
+            <MarkdownField
+                label="Описание"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Необязательно"
+                previewStyle={DESCRIPTION_TEXT_STYLE}
+            />
             {changed ? <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} /> : null}
         </View>
     );

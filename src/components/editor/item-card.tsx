@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AudioButton } from '@/components/audio-button';
 import { Card, IconButton } from '@/components/app-ui';
+import { Markdown } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import { QUESTION_TYPE_LABELS, type LessonItem, type Question } from '@/lib/types';
 
@@ -41,7 +42,7 @@ export function ItemCard({ item, isFirst, isLast, onEdit, onDelete, onMove }: {
                 </View>
             </View>
 
-            <Text style={styles.text}>{item.text}</Text>
+            <Markdown text={item.text} style={styles.text} />
 
             {item.kind === 'QUESTION' ? <OptionsPreview question={item} /> : null}
 

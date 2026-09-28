@@ -2,8 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Button, Card, ErrorBanner, IconButton, Segmented, TextField } from '@/components/app-ui';
+import { Button, Card, ErrorBanner, IconButton, Segmented } from '@/components/app-ui';
+import { MarkdownField } from '@/components/editor/markdown-field';
 import { MediaField } from '@/components/editor/media-field';
+import { QUESTION_TEXT_STYLE } from '@/components/player/question-step';
 import { AppColors } from '@/constants/app-colors';
 import {
     changeQuestionType,
@@ -85,12 +87,12 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
         <Card style={styles.form}>
             <Text style={styles.formTitle}>{isNew ? 'Новый вопрос' : 'Редактирование вопроса'}</Text>
 
-            <TextField
+            <MarkdownField
                 label="Текст вопроса"
                 value={draft.text}
                 onChangeText={(text) => setDraft((d) => ({ ...d, text }))}
                 placeholder="Например: Как перевести «Салам»?"
-                multiline
+                previewStyle={QUESTION_TEXT_STYLE}
             />
 
             <Text style={styles.label}>Тип вопроса</Text>

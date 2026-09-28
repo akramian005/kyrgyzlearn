@@ -3,6 +3,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/app-ui';
+import { markdownToPlain } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import type { Course } from '@/lib/types';
 
@@ -30,7 +31,7 @@ export function CourseCard({ course, onPress, actionIcon = 'chevron-forward', sh
                     <Text style={styles.author} numberOfLines={1}>{courseAuthor(course)}</Text>
                 ) : null}
                 {course.description ? (
-                    <Text style={styles.description} numberOfLines={2}>{course.description}</Text>
+                    <Text style={styles.description} numberOfLines={2}>{markdownToPlain(course.description)}</Text>
                 ) : null}
                 <Text style={styles.meta}>
                     {lessonsLabel(course.lessonCount)}

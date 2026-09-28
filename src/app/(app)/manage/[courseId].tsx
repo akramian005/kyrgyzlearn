@@ -16,6 +16,8 @@ import {
     SectionTitle,
     TextField,
 } from '@/components/app-ui';
+import { MarkdownField } from '@/components/editor/markdown-field';
+import { DESCRIPTION_TEXT_STYLE } from '@/components/markdown';
 import { VideoForm } from '@/components/editor/video-form';
 import { lessonNumber, LessonRow } from '@/components/lesson-row';
 import { VideoRow } from '@/components/video-row';
@@ -264,7 +266,13 @@ function CourseForm({ course, onSaved }: { course: Course; onSaved: () => Promis
         <View style={{ marginTop: 16 }}>
             <ErrorBanner message={error} />
             <TextField label="Название курса" value={title} onChangeText={setTitle} />
-            <TextField label="Описание" value={description} onChangeText={setDescription} multiline placeholder="О чём этот курс" />
+            <MarkdownField
+                label="Описание"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="О чём этот курс"
+                previewStyle={DESCRIPTION_TEXT_STYLE}
+            />
             {changed ? <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} /> : null}
         </View>
     );
@@ -305,7 +313,12 @@ function NewLessonForm({ courseId, onError }: { courseId: number; onError: (mess
     return (
         <Card>
             <TextField label="Название урока" value={title} onChangeText={setTitle} placeholder="Например: Приветствие" autoFocus />
-            <TextField label="Описание (необязательно)" value={description} onChangeText={setDescription} multiline />
+            <MarkdownField
+                label="Описание (необязательно)"
+                value={description}
+                onChangeText={setDescription}
+                previewStyle={DESCRIPTION_TEXT_STYLE}
+            />
             <View style={styles.formButtons}>
                 <Button title="Отмена" variant="ghost" onPress={() => setOpen(false)} style={styles.flex} />
                 <Button title="Создать и заполнить" onPress={handleCreate} loading={saving} style={styles.flex} />

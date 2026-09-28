@@ -3,6 +3,7 @@ import React, { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/app-ui';
+import { markdownToPlain } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import type { CourseItem, LessonSummary } from '@/lib/types';
 
@@ -50,7 +51,7 @@ export function LessonRow({ lesson, index, onPress, actions, showProgress = fals
                 <View style={styles.body}>
                     <Text style={styles.title} numberOfLines={2}>{lesson.title}</Text>
                     {lesson.description ? (
-                        <Text style={styles.description} numberOfLines={2}>{lesson.description}</Text>
+                        <Text style={styles.description} numberOfLines={2}>{markdownToPlain(lesson.description)}</Text>
                     ) : null}
                     <Text style={styles.meta}>
                         {completed ? <Text style={styles.completed}>Пройден · </Text> : null}

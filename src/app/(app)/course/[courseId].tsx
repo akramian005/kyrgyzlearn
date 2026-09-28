@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { Button, EmptyState, ErrorBanner, IconButton, LoadingView, Muted, Page, ScreenHeader, Title } from '@/components/app-ui';
 import { courseAuthor, courseProgressLabel } from '@/components/course-card';
 import { lessonNumber, LessonRow } from '@/components/lesson-row';
+import { DESCRIPTION_TEXT_STYLE, Markdown } from '@/components/markdown';
 import { VideoRow } from '@/components/video-row';
 import { AppColors } from '@/constants/app-colors';
 import { errorMessage, useApi, useLoader } from '@/lib/hooks';
@@ -40,7 +41,9 @@ export default function CourseScreen() {
                                 </Muted>
                             ) : null}
                             {data.course.description ? (
-                                <Muted style={{ marginBottom: 12 }}>{data.course.description}</Muted>
+                                <View style={{ marginBottom: 12 }}>
+                                    <Markdown text={data.course.description} style={DESCRIPTION_TEXT_STYLE} />
+                                </View>
                             ) : null}
 
                             {data.course.type === 'USER' ? (

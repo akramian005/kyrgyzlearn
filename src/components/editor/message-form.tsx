@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, ErrorBanner, TextField } from '@/components/app-ui';
+import { Button, Card, ErrorBanner } from '@/components/app-ui';
+import { MarkdownField } from '@/components/editor/markdown-field';
 import { MediaField } from '@/components/editor/media-field';
+import { MESSAGE_TEXT_STYLE } from '@/components/player/message-step';
 import { AppColors } from '@/constants/app-colors';
 import { validateMessage, type MessageDraft } from '@/lib/lesson-drafts';
 
@@ -37,12 +39,12 @@ export function MessageForm({ initial, isNew, onSave, onCancel }: {
         <Card style={styles.form}>
             <Text style={styles.formTitle}>{isNew ? 'Новое сообщение' : 'Редактирование сообщения'}</Text>
 
-            <TextField
+            <MarkdownField
                 label="Текст"
                 value={draft.text}
                 onChangeText={(text) => setDraft((d) => ({ ...d, text }))}
                 placeholder="Например: «Салам» — так здороваются в Кыргызстане"
-                multiline
+                previewStyle={MESSAGE_TEXT_STYLE}
             />
 
             <MediaField kind="image" label="Картинка (необязательно)" draft={draft.image} onChange={(image) => setDraft((d) => ({ ...d, image }))} />

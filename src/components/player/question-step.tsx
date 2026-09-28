@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native';
 
 import { AudioButton } from '@/components/audio-button';
+import { Markdown } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import { shuffle } from '@/lib/answers';
 import type { AnswerOption, Question } from '@/lib/types';
+
+// стиль текста вопроса — им же рисуется предпросмотр в редакторе (MarkdownField)
+export const QUESTION_TEXT_STYLE: TextStyle = {
+    color: AppColors.text,
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 30,
+};
 
 const INSTRUCTIONS = {
     SINGLE_CHOICE: 'Выберите правильный ответ',
@@ -29,7 +38,9 @@ export function QuestionStep({ question, selected, onChange, checked }: {
 
             <View style={styles.promptRow}>
                 {question.audioUrl ? <AudioButton key={question.audioUrl} url={question.audioUrl} large /> : null}
-                <Text style={styles.prompt}>{question.text}</Text>
+                <View style={styles.prompt}>
+                    <Markdown text={question.text} style={QUESTION_TEXT_STYLE} />
+                </View>
             </View>
 
             {question.type === 'ORDER' ? (
@@ -152,9 +163,6 @@ const styles = StyleSheet.create({
     },
     prompt: {
         flex: 1,
-        color: AppColors.text,
-        fontSize: 22,
-        fontWeight: '700',
     },
     choices: {
         gap: 12,

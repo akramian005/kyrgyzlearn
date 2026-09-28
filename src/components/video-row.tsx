@@ -3,6 +3,7 @@ import React, { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/app-ui';
+import { markdownToPlain } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import type { CourseVideo } from '@/lib/types';
 
@@ -33,7 +34,7 @@ export function VideoRow({ video, onPress, actions, showProgress = false }: {
                 <View style={styles.body}>
                     <Text style={styles.title} numberOfLines={2}>{video.title}</Text>
                     {video.description ? (
-                        <Text style={styles.description} numberOfLines={2}>{video.description}</Text>
+                        <Text style={styles.description} numberOfLines={2}>{markdownToPlain(video.description)}</Text>
                     ) : null}
                     <Text style={styles.meta}>
                         {watched ? <Text style={styles.watched}>Просмотрено · </Text> : null}

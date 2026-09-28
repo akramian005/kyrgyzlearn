@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 
 import { Button, ErrorBanner, Muted, Page, ScreenHeader, TextField } from '@/components/app-ui';
+import { MarkdownField } from '@/components/editor/markdown-field';
+import { DESCRIPTION_TEXT_STYLE } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import { errorMessage, useApi } from '@/lib/hooks';
 
@@ -47,12 +49,12 @@ export default function NewCourseScreen() {
                 <ErrorBanner message={error} />
 
                 <TextField label="Название" value={title} onChangeText={setTitle} placeholder="Например: Кыргызский для начинающих" />
-                <TextField
+                <MarkdownField
                     label="Описание (необязательно)"
                     value={description}
                     onChangeText={setDescription}
                     placeholder="О чём этот курс"
-                    multiline
+                    previewStyle={DESCRIPTION_TEXT_STYLE}
                 />
 
                 <Button title="Создать курс" onPress={handleCreate} loading={saving} />

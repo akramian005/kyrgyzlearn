@@ -1,12 +1,21 @@
 import { Image } from 'expo-image';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type TextStyle } from 'react-native';
 
 import { AudioButton } from '@/components/audio-button';
+import { Markdown } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import type { LessonMessage } from '@/lib/types';
 
-// Шаг-объяснение перед вопросами: текст, картинка и аудио
+// стиль текста сообщения — им же рисуется предпросмотр в редакторе (MarkdownField)
+export const MESSAGE_TEXT_STYLE: TextStyle = {
+    color: AppColors.text,
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 28,
+};
+
+// Шаг-объяснение перед вопросами: текст (Markdown), картинка и аудио
 export function MessageStep({ message }: { message: LessonMessage }) {
     return (
         <View style={styles.container}>
@@ -18,7 +27,9 @@ export function MessageStep({ message }: { message: LessonMessage }) {
 
             <View style={styles.bubble}>
                 {message.audioUrl ? <AudioButton key={message.audioUrl} url={message.audioUrl} large /> : null}
-                <Text style={styles.text}>{message.text}</Text>
+                <View style={styles.textBox}>
+                    <Markdown text={message.text} style={MESSAGE_TEXT_STYLE} />
+                </View>
             </View>
         </View>
     );
@@ -52,11 +63,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         padding: 16,
     },
-    text: {
+    textBox: {
         flex: 1,
-        color: AppColors.text,
-        fontSize: 20,
-        fontWeight: '600',
-        lineHeight: 28,
     },
 });
