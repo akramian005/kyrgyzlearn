@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
 import { Avatar } from '@/components/avatar';
@@ -15,7 +15,7 @@ import { errorMessage, useApi, useLoader } from '@/lib/hooks';
 import type { Course, Progress, UserProfile } from '@/lib/types';
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, validateEmail, validateName, validateNewPassword } from '@/lib/validation';
 
-// «Профиль»: прогресс, сохранённые курсы, аватар, имя, почта, пароль и выход из аккаунта
+// «Профиль»: аватар (меняется нажатием на него), прогресс, сохранённые курсы, имя, почта, пароль и выход
 export default function ProfileScreen() {
     const { session, signOut } = useSession();
     const api = useApi();
@@ -47,12 +47,14 @@ export default function ProfileScreen() {
 
             <ErrorBanner message={error} />
 
-            <Card style={styles.header}>
-                <Avatar url={profile?.avatarUrl} name={name || email} />
-                <View style={styles.headerInfo}>
-                    <Text style={styles.name} numberOfLines={1}>{name || 'Без имени'}</Text>
-                    <Text style={styles.email} numberOfLines={1}>{email}</Text>
-                    {isAdmin ? <Badge label="Админ" /> : <Badge label="Ученик" color={AppColors.blue} />}
+            <Card>
+                <View style={styles.header}>
+                    <AvatarControl profile={profile} name={name || email} onChange={setData} />
+                    <View style={styles.headerInfo}>
+                        <Text style={styles.name} numberOfLines={1}>{name || 'Без имени'}</Text>
+                        <Text style={styles.email} numberOfLines={1}>{email}</Text>
+                        {isAdmin ? <Badge label="Админ" /> : <Badge label="Ученик" color={AppColors.blue} />}
+                    </View>
                 </View>
             </Card>
 
@@ -62,7 +64,6 @@ export default function ProfileScreen() {
 
             {profile ? (
                 <>
-                    <AvatarSection profile={profile} onChange={setData} />
                     <NameForm profile={profile} onChange={setData} />
                     <EmailForm profile={profile} onChange={setData} />
                     <PasswordForm />
@@ -130,61 +131,95 @@ type SectionProps = {
 
 // ---------- Аватар ----------
 
-// файл загружается сразу после выбора — отдельной кнопки «Сохранить» нет
-function AvatarSection({ profile, onChange }: SectionProps) {
+// Аватар в шапке профиля: нажатие на него или на значок камеры рядом — сменить или удалить фото.
+// Если фото ещё нет, сразу открывается выбор файла; файл загружается сразу, без кнопки «Сохранить».
+function AvatarControl({ profile, name, onChange }: {
+    profile: UserProfile | undefined;
+    name: string;
+    onChange: (profile: UserProfile) => void;
+}) {
     const api = useApi();
+    const [menuOpen, setMenuOpen] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
 
-    const choose = async () => {
-        const picked = await pickFile('image');
-        if (!picked) return;
-
+    const run = async (action: () => Promise<void>) => {
+        setMenuOpen(false);
         setError(null);
         setBusy(true);
         try {
-            const avatarUrl = await api.profile.uploadAvatar(picked);
-            onChange({ ...profile, avatarUrl });
+            await action();
         } catch (e) {
             setError(errorMessage(e));
         } finally {
             setBusy(false);
         }
+    };
+
+    const choose = async () => {
+        const picked = await pickFile('image');
+        if (!picked || !profile) return;
+        await run(async () => {
+            const avatarUrl = await api.profile.uploadAvatar(picked);
+            onChange({ ...profile, avatarUrl });
+        });
     };
 
     const remove = async () => {
+        if (!profile) return;
         if (!(await confirmAsync('Удалить фото?', 'Вместо него будет показана первая буква имени'))) return;
-
-        setError(null);
-        setBusy(true);
-        try {
+        await run(async () => {
             await api.profile.removeAvatar();
             onChange({ ...profile, avatarUrl: null });
-        } catch (e) {
-            setError(errorMessage(e));
-        } finally {
-            setBusy(false);
-        }
+        });
+    };
+
+    const open = () => {
+        setError(null);
+        if (profile?.avatarUrl) setMenuOpen((value) => !value);
+        else void choose();
     };
 
     return (
-        <>
-            <SectionTitle>Фото</SectionTitle>
-            <ErrorBanner message={error} />
-            <View style={styles.buttons}>
-                <Button
-                    title={profile.avatarUrl ? 'Сменить фото' : 'Загрузить фото'}
-                    icon="image-outline"
-                    variant="secondary"
-                    small
-                    loading={busy}
-                    onPress={choose}
-                />
-                {profile.avatarUrl ? (
-                    <Button title="Удалить фото" icon="trash-outline" variant="danger" small disabled={busy} onPress={remove} />
+        <View>
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={profile?.avatarUrl ? 'Сменить или удалить фото' : 'Загрузить фото'}
+                disabled={!profile || busy}
+                onPress={open}
+                style={({ pressed }) => pressed && styles.pressed}
+            >
+                <Avatar url={profile?.avatarUrl} name={name} />
+                {busy ? (
+                    <View style={styles.avatarBusy}>
+                        <ActivityIndicator color="#fff" />
+                    </View>
                 ) : null}
+            </Pressable>
+
+            {/* кнопка управления фото — на краю аватара */}
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Управление фото"
+                disabled={!profile || busy}
+                onPress={open}
+                hitSlop={6}
+                style={({ pressed }) => [styles.avatarButton, pressed && styles.pressed]}
+            >
+                <Ionicons name="camera" size={18} color="#fff" />
+            </Pressable>
+
+            {menuOpen ? (
+                <View style={styles.avatarMenu}>
+                    <Button title="Сменить фото" icon="image-outline" variant="secondary" small onPress={choose} />
+                    <Button title="Удалить фото" icon="trash-outline" variant="danger" small onPress={remove} />
+                    <Button title="Отмена" variant="ghost" small onPress={() => setMenuOpen(false)} />
+                </View>
+            ) : null}
+            <View style={styles.avatarError}>
+                <ErrorBanner message={error} />
             </View>
-        </>
+        </View>
     );
 }
 
@@ -424,6 +459,42 @@ function profileErrorMessage(e: unknown): string {
 }
 
 const styles = StyleSheet.create({
+    pressed: {
+        opacity: 0.7,
+    },
+    avatarBusy: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarButton: {
+        position: 'absolute',
+        right: -2,
+        top: 64,
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        backgroundColor: AppColors.blue,
+        borderWidth: 3,
+        borderColor: AppColors.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarMenu: {
+        marginTop: 10,
+        gap: 6,
+        alignItems: 'flex-start',
+    },
+    avatarError: {
+        marginTop: 8,
+        maxWidth: 200,
+    },
     stats: {
         flexDirection: 'row',
         gap: 12,
@@ -461,11 +532,6 @@ const styles = StyleSheet.create({
         color: AppColors.textSecondary,
         fontSize: 15,
         marginBottom: 4,
-    },
-    buttons: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
     },
     saveRow: {
         flexDirection: 'row',
