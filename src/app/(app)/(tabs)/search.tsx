@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { ScrollView } from 'react-native';
 
-import { Button, EmptyState, ErrorBanner, LoadingView, Muted, Page, TextField, Title } from '@/components/app-ui';
+import { EmptyState, ErrorBanner, LoadingView, Muted, Page, TextField, Title } from '@/components/app-ui';
 import { CourseCard } from '@/components/course-card';
+import { Pagination } from '@/components/pagination';
 import { errorMessage, useApi } from '@/lib/hooks';
 import type { Course } from '@/lib/types';
 
@@ -10,7 +12,7 @@ const PAGE_SIZE = 20;
 // ждём, пока пользователь допечатает, чтобы не слать запрос на каждую букву
 const SEARCH_DELAY_MS = 350;
 
-// «Поиск»: личные курсы всех пользователей с поиском по названию, постранично.
+// «Поиск»: личные курсы всех пользователей с поиском по названию, по страницам с номерами.
 // Курс можно открыть, пройти и сохранить — сохранённые лежат в «Профиле».
 export default function SearchScreen() {
     const api = useApi();
@@ -19,7 +21,8 @@ export default function SearchScreen() {
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(0);
     const [error, setError] = useState<string | null>(null);
-    const [loadingMore, setLoadingMore] = useState(false);
+    const [loadingPage, setLoadingPage] = useState(false);
+    const scrollRef = useRef<ScrollView>(null);
 
     // номер последнего запроса: ответ на устаревший запрос (старый текст поиска) игнорируем
     const requestId = useRef(0);
@@ -29,7 +32,7 @@ export default function SearchScreen() {
         try {
             const result = await api.courses.search(text.trim(), pageNumber, PAGE_SIZE);
             if (id !== requestId.current) return;
-            setCourses((prev) => (pageNumber === 0 || !prev ? result.content : [...prev, ...result.content]));
+            setCourses(result.content);
             setTotal(result.totalElements);
             setPage(pageNumber);
             setError(null);
@@ -44,16 +47,18 @@ export default function SearchScreen() {
         return () => clearTimeout(timer);
     }, [query, load]);
 
-    const loadMore = async () => {
-        setLoadingMore(true);
-        await load(query, page + 1);
-        setLoadingMore(false);
+    // список страницы заменяет предыдущий — возвращаемся к его началу
+    const changePage = async (pageNumber: number) => {
+        setLoadingPage(true);
+        await load(query, pageNumber);
+        setLoadingPage(false);
+        scrollRef.current?.scrollTo({ y: 0, animated: true });
     };
 
-    const hasMore = courses !== null && courses.length < total;
+    const pageCount = Math.ceil(total / PAGE_SIZE);
 
     return (
-        <Page onRefresh={() => void load(query, 0)}>
+        <Page ref={scrollRef} onRefresh={() => void load(query, page)}>
             <Title>Поиск</Title>
             <Muted style={{ marginTop: -10, marginBottom: 16 }}>Курсы, которые создали пользователи</Muted>
 
@@ -87,9 +92,7 @@ export default function SearchScreen() {
                 />
             ))}
 
-            {hasMore ? (
-                <Button title="Показать ещё" variant="secondary" loading={loadingMore} onPress={loadMore} />
-            ) : null}
+            <Pagination page={page} pageCount={pageCount} onChange={changePage} disabled={loadingPage} />
         </Page>
     );
 }

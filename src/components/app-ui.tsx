@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import React, { useState, type ComponentProps, type PropsWithChildren } from 'react';
+import React, { useState, type ComponentProps, type PropsWithChildren, type Ref } from 'react';
 import {
     ActivityIndicator,
     Pressable,
@@ -27,12 +27,15 @@ export const CONTENT_MAX_WIDTH = 760;
 
 // ---------- Каркас экрана ----------
 
-export function Page({ children, onRefresh, refreshing = false }: PropsWithChildren<{
+// ref — чтобы экран мог прокрутить себя наверх (например, при смене страницы в поиске)
+export function Page({ children, onRefresh, refreshing = false, ref }: PropsWithChildren<{
     onRefresh?: () => void;
     refreshing?: boolean;
+    ref?: Ref<ScrollView>;
 }>) {
     return (
         <ScrollView
+            ref={ref}
             style={styles.page}
             contentContainerStyle={styles.pageContent}
             keyboardShouldPersistTaps="handled"
