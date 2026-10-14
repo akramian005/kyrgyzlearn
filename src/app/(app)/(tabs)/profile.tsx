@@ -5,8 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { useSession } from '@/auth/session';
 import { Avatar } from '@/components/avatar';
-import { Badge, Button, Card, EmptyState, ErrorBanner, LoadingView, Page, SectionTitle, TextField, Title } from '@/components/app-ui';
-import { CourseCard } from '@/components/course-card';
+import { Badge, Button, Card, ErrorBanner, LoadingView, Page, SectionTitle, TextField, Title } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
 import { ApiError } from '@/lib/api';
 import { confirmAsync } from '@/lib/confirm';
@@ -19,11 +18,11 @@ import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, validateEmail, validateName, vali
 export default function ProfileScreen() {
     const { session, signOut } = useSession();
     const api = useApi();
-    const { data: profile, error, loading, reload, setData } = useLoader(() => api.profile.get());
+    const { data: profile, error, loading, reload, setData } = useLoader(() => api.profile.get(), 'profile');
     // отдельный загрузчик: курс могли сохранить или убрать на экране курса — при возврате список обновится
-    const saved = useLoader(() => api.saved.list());
+    const saved = useLoader(() => api.saved.list(), 'saved');
     // после урока при возврате в профиль счётчики обновятся
-    const progress = useLoader(() => api.progress.get());
+    const progress = useLoader(() => api.progress.get(), 'progress');
 
     const logout = async () => {
         if (await confirmAsync('Выйти из аккаунта?', 'Чтобы вернуться, нужно будет снова ввести email и пароль', 'Выйти')) {
@@ -100,28 +99,33 @@ function ProgressStats({ progress, error }: { progress: Progress | undefined; er
 
 // ---------- Сохранённые курсы ----------
 
+// Строка-ссылка на экран «Сохранённые курсы»: сам список там, по страницам, — профиль не растёт
 function SavedCourses({ courses, error }: { courses: Course[] | undefined; error: string | null }) {
     return (
         <>
             <SectionTitle>Сохранённые курсы</SectionTitle>
             <ErrorBanner message={error} />
-            {courses && courses.length === 0 ? (
-                <EmptyState
-                    icon="bookmark-outline"
-                    title="Пока ничего не сохранено"
-                    text="Найдите курс во вкладке «Поиск» и нажмите «Сохранить курс»"
-                />
-            ) : null}
-            {courses?.map((course) => (
-                <CourseCard
-                    key={course.id}
-                    course={course}
-                    showAuthor
-                    onPress={() => router.push({ pathname: '/course/[courseId]', params: { courseId: course.id } })}
-                />
-            ))}
+            <Card onPress={() => router.push('/saved')} style={styles.savedLink}>
+                <View style={styles.savedIcon}>
+                    <Ionicons name="bookmark" size={22} color={AppColors.blue} />
+                </View>
+                <View style={styles.savedBody}>
+                    <Text style={styles.savedTitle}>Сохранённые курсы</Text>
+                    <Text style={styles.savedCount}>{courses ? savedCountLabel(courses.length) : '…'}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color={AppColors.textSecondary} />
+            </Card>
         </>
     );
+}
+
+function savedCountLabel(count: number): string {
+    if (count === 0) return 'Пока ничего не сохранено';
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 === 1 && mod100 !== 11) return `${count} курс`;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${count} курса`;
+    return `${count} курсов`;
 }
 
 type SectionProps = {
@@ -450,7 +454,7 @@ function SaveRow({ title, loading, disabled, saved, onPress }: {
 }
 
 // ошибки UserService на бэкенде — по-русски
-function profileErrorMessage(e: unknown): string {
+function profileErrorMessage(e: unknown): string | null {
     if (e instanceof ApiError) {
         if (e.message === 'Wrong current password') return 'Неверный текущий пароль';
         if (e.status === 409) return 'Этот email уже занят';
@@ -459,6 +463,32 @@ function profileErrorMessage(e: unknown): string {
 }
 
 const styles = StyleSheet.create({
+    savedLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+    },
+    savedIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: AppColors.blueBackground,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    savedBody: {
+        flex: 1,
+        gap: 2,
+    },
+    savedTitle: {
+        color: AppColors.text,
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    savedCount: {
+        color: AppColors.textSecondary,
+        fontSize: 14,
+    },
     pressed: {
         opacity: 0.7,
     },

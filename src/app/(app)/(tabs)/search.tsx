@@ -2,9 +2,10 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScrollView } from 'react-native';
 
-import { EmptyState, ErrorBanner, LoadingView, Muted, Page, TextField, Title } from '@/components/app-ui';
+import { EmptyState, ErrorBanner, LoadingView, Muted, OfflineState, Page, TextField, Title } from '@/components/app-ui';
 import { CourseCard } from '@/components/course-card';
 import { Pagination } from '@/components/pagination';
+import { isConnectionError } from '@/lib/api';
 import { errorMessage, useApi } from '@/lib/hooks';
 import type { Course } from '@/lib/types';
 
@@ -21,6 +22,8 @@ export default function SearchScreen() {
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    // нет связи с сервером: о ней сообщает всплывающее уведомление, а вместо вечной загрузки — заглушка
+    const [offline, setOffline] = useState(false);
     const [loadingPage, setLoadingPage] = useState(false);
     const scrollRef = useRef<ScrollView>(null);
 
@@ -36,8 +39,11 @@ export default function SearchScreen() {
             setTotal(result.totalElements);
             setPage(pageNumber);
             setError(null);
+            setOffline(false);
         } catch (e) {
-            if (id === requestId.current) setError(errorMessage(e));
+            if (id !== requestId.current) return;
+            setError(errorMessage(e));
+            setOffline(isConnectionError(e));
         }
     }, [api]);
 
@@ -75,7 +81,9 @@ export default function SearchScreen() {
 
             <ErrorBanner message={error} />
 
-            {courses === null && !error ? <LoadingView /> : null}
+            {courses === null && !error && !offline ? <LoadingView /> : null}
+
+            {courses === null && offline ? <OfflineState onRetry={() => void load(query, page)} /> : null}
 
             {courses && courses.length === 0 ? (
                 query.trim()

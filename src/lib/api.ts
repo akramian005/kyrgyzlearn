@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import type { AnswerOption, Course, CourseItem, CourseVideo, Lesson, LessonMessage, LessonSummary, Page, Progress, Question, QuestionType, Role, UserProfile } from '@/lib/types';
 import type { PickedFile } from '@/lib/files';
+import { showToast } from '@/lib/toast';
 import { uploadFile } from '@/lib/upload';
 
 const BACKEND_PORT = 8080;
@@ -48,34 +49,57 @@ type RequestOptions = {
     token?: string | null;
 };
 
-const NO_CONNECTION = 'Нет связи с сервером. Проверьте, что бэкенд запущен.';
+const NO_CONNECTION = 'Нет связи с сервером';
+// без ответа дольше — считаем, что связи нет: иначе при недоступном сервере
+// телефон ждёт системный таймаут (до минуты) и экран всё это время крутит загрузку
+const REQUEST_TIMEOUT_MS = 8000;
+
+// Сеть недоступна: показываем одно всплывающее уведомление (см. lib/toast) — экраны
+// такую ошибку у себя не выводят (errorMessage возвращает для неё null)
+function noConnection(): ApiError {
+    showToast(NO_CONNECTION);
+    return new ApiError(0, NO_CONNECTION);
+}
+
+export function isConnectionError(e: unknown): boolean {
+    return e instanceof ApiError && e.status === 0;
+}
 
 async function request<T>(path: string, { method = 'GET', body, token }: RequestOptions = {}): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    let response: Response;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let status: number;
+    let text: string;
     try {
-        response = await fetch(`${API_URL}${path}`, {
+        const response = await fetch(`${API_URL}${path}`, {
             method,
             headers,
             body: body === undefined ? undefined : JSON.stringify(body),
+            signal: controller.signal,
         });
+        status = response.status;
+        text = await response.text();
     } catch {
-        throw new ApiError(0, NO_CONNECTION);
+        throw noConnection();
+    } finally {
+        clearTimeout(timer);
     }
 
-    return parseResponse<T>(response.status, await response.text());
+    return parseResponse<T>(status, text);
 }
 
-// Загрузка картинки/аудио: на телефоне и в вебе файл отправляется по-разному (см. lib/upload)
+// Загрузка картинки/аудио: на телефоне и в вебе файл отправляется по-разному (см. lib/upload).
+// Без таймаута: большое видео может грузиться долго.
 async function uploadRequest(path: string, token: string | null, file: PickedFile): Promise<string> {
     let result;
     try {
         result = await uploadFile(`${API_URL}${path}`, token, file);
     } catch {
-        throw new ApiError(0, NO_CONNECTION);
+        throw noConnection();
     }
 
     try {

@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useSession } from '@/auth/session';
-import { Button, EmptyState, ErrorBanner, LoadingView, Muted, Page, SectionTitle, Title } from '@/components/app-ui';
+import { Button, EmptyState, ErrorBanner, LoadingView, Muted, OfflineState, Page, SectionTitle, Title } from '@/components/app-ui';
 import { CourseCard } from '@/components/course-card';
 import { useApi, useLoader } from '@/lib/hooks';
 
@@ -13,7 +13,7 @@ import { useApi, useLoader } from '@/lib/hooks';
 export default function MoreScreen() {
     const api = useApi();
     const isAdmin = useSession().session?.role === 'ADMIN';
-    const { data: courses, error, loading, reload } = useLoader(() => api.courses.list());
+    const { data: courses, error, loading, offline, reload } = useLoader(() => api.courses.list(), 'courses');
 
     const manageable = (courses ?? []).filter((course) => course.type === (isAdmin ? 'OFFICIAL' : 'USER'));
     const newCourse = () => router.push(isAdmin ? { pathname: '/manage/new', params: { official: '1' } } : '/manage/new');
@@ -35,6 +35,7 @@ export default function MoreScreen() {
             </View>
 
             <ErrorBanner message={error} />
+            {offline && !courses ? <OfflineState onRetry={() => void reload()} /> : null}
 
             {courses && manageable.length === 0 ? (
                 <EmptyState

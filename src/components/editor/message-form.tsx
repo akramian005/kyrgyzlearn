@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Button, Card, ErrorBanner } from '@/components/app-ui';
+import { FormHeader } from '@/components/editor/form-header';
 import { MarkdownField } from '@/components/editor/markdown-field';
 import { MediaField } from '@/components/editor/media-field';
 import { MESSAGE_TEXT_STYLE } from '@/components/player/message-step';
@@ -37,7 +38,10 @@ export function MessageForm({ initial, isNew, onSave, onCancel }: {
 
     return (
         <Card style={styles.form}>
-            <Text style={styles.formTitle}>{isNew ? 'Новое сообщение' : 'Редактирование сообщения'}</Text>
+            <FormHeader title={isNew ? 'Новое сообщение' : 'Редактирование сообщения'} onClose={onCancel} />
+
+            <MediaField kind="image" label="Картинка (необязательно)" draft={draft.image} onChange={(image) => setDraft((d) => ({ ...d, image }))} />
+            <MediaField kind="audio" label="Аудио (необязательно)" draft={draft.audio} onChange={(audio) => setDraft((d) => ({ ...d, audio }))} />
 
             <MarkdownField
                 label="Текст"
@@ -46,9 +50,6 @@ export function MessageForm({ initial, isNew, onSave, onCancel }: {
                 placeholder="Например: «Салам» — так здороваются в Кыргызстане"
                 previewStyle={MESSAGE_TEXT_STYLE}
             />
-
-            <MediaField kind="image" label="Картинка (необязательно)" draft={draft.image} onChange={(image) => setDraft((d) => ({ ...d, image }))} />
-            <MediaField kind="audio" label="Аудио (необязательно)" draft={draft.audio} onChange={(audio) => setDraft((d) => ({ ...d, audio }))} />
 
             <ErrorBanner message={error} />
 
@@ -63,12 +64,6 @@ export function MessageForm({ initial, isNew, onSave, onCancel }: {
 const styles = StyleSheet.create({
     form: {
         borderColor: AppColors.blue,
-    },
-    formTitle: {
-        color: AppColors.text,
-        fontSize: 18,
-        fontWeight: '800',
-        marginBottom: 16,
     },
     buttons: {
         flexDirection: 'row',

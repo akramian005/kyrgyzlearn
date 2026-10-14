@@ -8,7 +8,6 @@ import {
     ErrorBanner,
     IconButton,
     LoadingView,
-    Muted,
     Page,
     ScreenHeader,
     SectionTitle,
@@ -158,10 +157,6 @@ export default function LessonEditorScreen() {
                             <LessonMetaForm key={lesson.id} lesson={lesson} onSaved={reload} />
 
                             <SectionTitle>Шаги урока</SectionTitle>
-                            <Muted style={styles.hint}>
-                                Ученик проходит шаги сверху вниз. Сообщения объясняют новое слово или правило перед вопросами —
-                                нажмите «+» между шагами, чтобы вставить что-то в нужное место.
-                            </Muted>
 
                             {lesson.items.length === 0 && editing === null ? (
                                 <EmptyState icon="list-outline" title="Урок пока пустой" text="Добавьте первый вопрос или сообщение" />
@@ -245,6 +240,13 @@ function LessonMetaForm({ lesson, onSaved }: { lesson: Lesson; onSaved: () => Pr
         }
     };
 
+    // отменить правки — вернуть сохранённые название и описание
+    const handleCancel = () => {
+        setTitle(lesson.title);
+        setDescription(lesson.description ?? '');
+        setError(null);
+    };
+
     return (
         <View>
             <ErrorBanner message={error} />
@@ -256,19 +258,24 @@ function LessonMetaForm({ lesson, onSaved }: { lesson: Lesson; onSaved: () => Pr
                 placeholder="Необязательно"
                 previewStyle={DESCRIPTION_TEXT_STYLE}
             />
-            {changed ? <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} /> : null}
+            {changed ? (
+                <View style={styles.formButtons}>
+                    <Button title="Отмена" variant="ghost" onPress={handleCancel} disabled={saving} style={styles.flex} />
+                    <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} style={styles.flex} />
+                </View>
+            ) : null}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
+    formButtons: {
+        flexDirection: 'row',
+        gap: 12,
+    },
     screen: {
         flex: 1,
         backgroundColor: AppColors.background,
-    },
-    hint: {
-        marginTop: -6,
-        marginBottom: 12,
     },
     slot: {
         flexDirection: 'row',

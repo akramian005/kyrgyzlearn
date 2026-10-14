@@ -13,6 +13,7 @@ export default function AppLayout() {
             <Stack.Screen name="manage/[courseId]" />
             <Stack.Screen name="manage/lesson/[lessonId]" />
             <Stack.Screen name="video/[videoId]" />
+            <Stack.Screen name="saved" />
             {/* урок проходится на весь экран, как в Duolingo */}
             <Stack.Screen name="lesson/[lessonId]" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         </Stack>

@@ -8,9 +8,9 @@ import {
     Card,
     EmptyState,
     ErrorBanner,
+    goBack,
     IconButton,
     LoadingView,
-    Muted,
     Page,
     ScreenHeader,
     SectionTitle,
@@ -89,7 +89,8 @@ export default function ManageCourseScreen() {
         if (!(await confirmAsync('Удалить курс?', `«${data.course.title}» и все его уроки будут удалены без возможности восстановления.`))) return;
         try {
             await api.courses.remove(id);
-            router.back();
+            // курс удалён — возвращаться на его экран нельзя, запасной путь — список курсов
+            goBack('/more');
         } catch (e) {
             setActionError(errorMessage(e));
         }
@@ -113,9 +114,6 @@ export default function ManageCourseScreen() {
                             <CourseForm key={data.course.id} course={data.course} onSaved={reload} />
 
                             <SectionTitle>Уроки и видео</SectionTitle>
-                            <Muted style={styles.hint}>
-                                Ученик видит уроки и видео в этом порядке — стрелками можно поставить видео между уроками.
-                            </Muted>
 
                             {data.items.length === 0 ? (
                                 <EmptyState icon="book-outline" title="Уроков пока нет" text="Добавьте первый урок или видео ниже" />
@@ -272,9 +270,18 @@ function CourseForm({ course, onSaved }: { course: Course; onSaved: () => Promis
         }
     };
 
+    // отменить правки — вернуть сохранённые название, описание и картинку
+    const handleCancel = () => {
+        setTitle(course.title);
+        setDescription(course.description ?? '');
+        setImage(emptyMedia(course.imageUrl));
+        setError(null);
+    };
+
     return (
         <View style={{ marginTop: 16 }}>
             <ErrorBanner message={error} />
+            <MediaField kind="image" label="Картинка курса (необязательно)" draft={image} onChange={setImage} />
             <TextField label="Название курса" value={title} onChangeText={setTitle} />
             <MarkdownField
                 label="Описание"
@@ -283,8 +290,12 @@ function CourseForm({ course, onSaved }: { course: Course; onSaved: () => Promis
                 placeholder="О чём этот курс"
                 previewStyle={DESCRIPTION_TEXT_STYLE}
             />
-            <MediaField kind="image" label="Картинка курса (необязательно)" draft={image} onChange={setImage} />
-            {changed ? <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} /> : null}
+            {changed ? (
+                <View style={styles.formButtons}>
+                    <Button title="Отмена" variant="ghost" onPress={handleCancel} disabled={saving} style={styles.flex} />
+                    <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} style={styles.flex} />
+                </View>
+            ) : null}
         </View>
     );
 }
@@ -342,10 +353,6 @@ const styles = StyleSheet.create({
     screen: {
         flex: 1,
         backgroundColor: AppColors.background,
-    },
-    hint: {
-        marginTop: -4,
-        marginBottom: 12,
     },
     addVideo: {
         marginTop: 12,

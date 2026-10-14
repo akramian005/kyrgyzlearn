@@ -3,10 +3,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, EmptyState, ErrorBanner, IconButton, LoadingView, Muted, Page, ScreenHeader, Title } from '@/components/app-ui';
+import { Button, EmptyState, ErrorBanner, IconButton, LoadingView, Muted, OfflineState, Page, ScreenHeader, Title } from '@/components/app-ui';
 import { courseAuthor, courseProgressLabel } from '@/components/course-card';
 import { lessonNumber, LessonRow } from '@/components/lesson-row';
-import { DESCRIPTION_TEXT_STYLE, Markdown } from '@/components/markdown';
+import { ExpandableMarkdown } from '@/components/expandable-markdown';
+import { DESCRIPTION_TEXT_STYLE } from '@/components/markdown';
 import { VideoRow } from '@/components/video-row';
 import { AppColors } from '@/constants/app-colors';
 import { errorMessage, useApi, useLoader } from '@/lib/hooks';
@@ -19,10 +20,10 @@ export default function CourseScreen() {
     const id = Number(courseId);
     const api = useApi();
 
-    const { data, error, loading, reload, setData } = useLoader(async () => {
+    const { data, error, loading, offline, reload, setData } = useLoader(async () => {
         const [course, items] = await Promise.all([api.courses.get(id), api.courses.items(id)]);
         return { course, items };
-    });
+    }, `course-${id}`);
 
     return (
         <View style={{ flex: 1, backgroundColor: AppColors.background }}>
@@ -31,9 +32,18 @@ export default function CourseScreen() {
             {loading && !data ? <LoadingView /> : (
                 <Page onRefresh={reload}>
                     <ErrorBanner message={error} />
+                    {offline && !data ? <OfflineState onRetry={() => void reload()} /> : null}
 
                     {data ? (
                         <>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', columnGap: 12, marginBottom: 8 }}>
+                                <Muted style={{ flexShrink: 1 }}>{courseAuthor(data.course)}</Muted>
+                                {courseProgressLabel(data.course) ? (
+                                    <Muted style={{ color: AppColors.gold, fontWeight: '700' }}>
+                                        {courseProgressLabel(data.course)}
+                                    </Muted>
+                                ) : null}
+                            </View>
                             {data.course.imageUrl ? (
                                 <Image
                                     source={{ uri: data.course.imageUrl }}
@@ -42,15 +52,9 @@ export default function CourseScreen() {
                                 />
                             ) : null}
                             <Title>{data.course.title}</Title>
-                            <Muted style={{ marginTop: -8, marginBottom: 8 }}>{courseAuthor(data.course)}</Muted>
-                            {courseProgressLabel(data.course) ? (
-                                <Muted style={{ marginBottom: 8, color: AppColors.gold, fontWeight: '700' }}>
-                                    {courseProgressLabel(data.course)}
-                                </Muted>
-                            ) : null}
                             {data.course.description ? (
                                 <View style={{ marginBottom: 12 }}>
-                                    <Markdown text={data.course.description} style={DESCRIPTION_TEXT_STYLE} />
+                                    <ExpandableMarkdown text={data.course.description} style={DESCRIPTION_TEXT_STYLE} />
                                 </View>
                             ) : null}
 

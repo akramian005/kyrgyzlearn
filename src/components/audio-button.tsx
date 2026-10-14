@@ -7,7 +7,7 @@ import { AppColors } from '@/constants/app-colors';
 
 // на iOS без этого звук не играет, если телефон в беззвучном режиме
 let audioModeReady: Promise<void> | null = null;
-function ensureAudioMode() {
+export function ensureAudioMode() {
     audioModeReady ??= setAudioModeAsync({ playsInSilentMode: true }).catch(() => undefined);
     return audioModeReady;
 }

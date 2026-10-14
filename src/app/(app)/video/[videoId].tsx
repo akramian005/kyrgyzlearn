@@ -2,7 +2,7 @@ import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { EmptyState, ErrorBanner, LoadingView, Page, ScreenHeader, Title } from '@/components/app-ui';
+import { EmptyState, ErrorBanner, LoadingView, OfflineState, Page, ScreenHeader, Title } from '@/components/app-ui';
 import { DESCRIPTION_TEXT_STYLE, Markdown } from '@/components/markdown';
 import { VideoPlayer } from '@/components/video-player';
 import { AppColors } from '@/constants/app-colors';
@@ -14,7 +14,7 @@ export default function VideoScreen() {
     const api = useApi();
 
     // ссылка на файл живёт час — берём свежую при каждом открытии экрана
-    const { data: video, error, loading } = useLoader(() => api.videos.get(Number(courseId), Number(videoId)));
+    const { data: video, error, loading, offline, reload } = useLoader(() => api.videos.get(Number(courseId), Number(videoId)));
 
     // видео открыли — засчитываем как просмотренное (у видео без файла смотреть нечего)
     const hasFile = !!video?.videoUrl;
@@ -32,6 +32,7 @@ export default function VideoScreen() {
             {loading && !video ? <LoadingView /> : (
                 <Page>
                     <ErrorBanner message={error} />
+                    {offline && !video ? <OfflineState onRetry={() => void reload()} /> : null}
 
                     {video ? (
                         <>

@@ -2,10 +2,12 @@ import React from 'react';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme, View, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { SessionProvider, useSession } from '@/auth/session';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { ToastHost } from '@/components/toast';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -13,7 +15,9 @@ export default function RootLayout() {
     const colorScheme = useColorScheme();
 
     return (
-        // 1. Глобальный провайдер безопасных зон устройства
+        // жесты react-native-gesture-handler (перетаскивание в редакторе) работают только внутри этого корня
+        <GestureHandlerRootView style={styles.content}>
+        {/* 1. Глобальный провайдер безопасных зон устройства */}
         <SafeAreaProvider>
             <SessionProvider>
                 <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -25,9 +29,13 @@ export default function RootLayout() {
                             <RootNavigator />
                         </View>
                     </SafeAreaView>
+
+                    {/* всплывающие уведомления поверх всех экранов (например, «Нет связи с сервером») */}
+                    <ToastHost />
                 </ThemeProvider>
             </SessionProvider>
         </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }
 

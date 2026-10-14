@@ -42,19 +42,32 @@ export function ItemCard({ item, isFirst, isLast, onEdit, onDelete, onMove }: {
                 </View>
             </View>
 
-            <Markdown text={item.text} style={styles.text} />
-
-            {item.kind === 'QUESTION' ? <OptionsPreview question={item} /> : null}
-
-            {item.kind === 'MESSAGE' && item.imageUrl ? (
-                <Image source={{ uri: item.imageUrl }} style={styles.image} contentFit="cover" />
-            ) : null}
-
-            {item.audioUrl ? (
-                <View style={styles.audio}>
-                    <AudioButton key={item.audioUrl} url={item.audioUrl} />
+            {item.kind === 'QUESTION' ? (
+                <>
+                    <Markdown text={item.text} style={styles.text} />
+                    <OptionsPreview question={item} />
+                    {item.audioUrl ? (
+                        <View style={styles.audio}>
+                            <AudioButton key={item.audioUrl} url={item.audioUrl} />
+                        </View>
+                    ) : null}
+                </>
+            ) : (
+                // сообщение — компактно, как вопрос: картинка миниатюрой слева, текст и аудио справа
+                <View style={styles.message}>
+                    {item.imageUrl ? (
+                        <Image source={{ uri: item.imageUrl }} style={styles.thumbnail} contentFit="cover" />
+                    ) : null}
+                    <View style={styles.messageBody}>
+                        <Markdown text={item.text} style={styles.text} />
+                        {item.audioUrl ? (
+                            <View style={styles.audio}>
+                                <AudioButton key={item.audioUrl} url={item.audioUrl} />
+                            </View>
+                        ) : null}
+                    </View>
                 </View>
-            ) : null}
+            )}
         </Card>
     );
 }
@@ -153,13 +166,19 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '600',
     },
-    image: {
-        width: '100%',
-        maxWidth: 320,
-        aspectRatio: 4 / 3,
+    message: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+    },
+    thumbnail: {
+        width: 88,
+        height: 88,
         borderRadius: 12,
-        marginTop: 10,
         backgroundColor: AppColors.surfaceRaised,
+    },
+    messageBody: {
+        flex: 1,
     },
     audio: {
         marginTop: 10,

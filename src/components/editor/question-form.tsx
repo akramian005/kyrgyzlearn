@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState } from 'react';
+import React, { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button, Card, ErrorBanner, IconButton, Segmented } from '@/components/app-ui';
+import { DraggableList } from '@/components/editor/draggable-list';
+import { FormHeader } from '@/components/editor/form-header';
 import { MarkdownField } from '@/components/editor/markdown-field';
 import { MediaField } from '@/components/editor/media-field';
 import { QUESTION_TEXT_STYLE } from '@/components/player/question-step';
@@ -14,7 +16,11 @@ import {
     type OptionDraft,
     type QuestionDraft,
 } from '@/lib/lesson-drafts';
+import { useIsDesktopWeb } from '@/lib/device';
 import { QUESTION_TYPE_LABELS, type QuestionType } from '@/lib/types';
+
+// строка варианта в «Последовательности» — одной высоты, чтобы их можно было перетаскивать
+const ORDER_ROW_HEIGHT = 56;
 
 const TYPE_OPTIONS = (Object.keys(QUESTION_TYPE_LABELS) as QuestionType[])
     .map((value) => ({ value, label: QUESTION_TYPE_LABELS[value] }));
@@ -22,8 +28,9 @@ const TYPE_OPTIONS = (Object.keys(QUESTION_TYPE_LABELS) as QuestionType[])
 const TYPE_HINTS: Record<QuestionType, string> = {
     SINGLE_CHOICE: 'Отметьте кружком единственный правильный вариант.',
     MULTIPLE_CHOICE: 'Отметьте все правильные варианты — ученик должен выбрать их все.',
-    ORDER: 'Ученик собирает ответ из вариантов по порядку. Отмеченные варианты — правильная последовательность '
-        + '(расставьте их стрелками), неотмеченные — лишние, для сложности.',
+    ORDER: 'Ученик собирает ответ из слов по порядку. Слова с номером — правильная последовательность '
+        + '(расставьте их, перетащив за ⋮⋮), «Лишнее» — для сложности, в ответ не входит. '
+        + 'Нажмите на номер или «Лишнее», чтобы переключить.',
 };
 
 export function QuestionForm({ initial, isNew, onSave, onCancel }: {
@@ -35,6 +42,8 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
     const [draft, setDraft] = useState(initial);
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    // стрелки «выше/ниже» — только на ПК, на телефоне слова перетаскивают зажатием
+    const desktop = useIsDesktopWeb();
 
     const updateOption = (key: string, patch: Partial<OptionDraft>) =>
         setDraft((d) => ({ ...d, options: d.options.map((o) => (o.key === key ? { ...o, ...patch } : o)) }));
@@ -48,14 +57,17 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
             }),
         }));
 
-    const moveOption = (index: number, delta: -1 | 1) =>
+    const moveOption = (from: number, to: number) =>
         setDraft((d) => {
+            if (to < 0 || to >= d.options.length || to === from) return d;
             const options = [...d.options];
-            const target = index + delta;
-            if (target < 0 || target >= options.length) return d;
-            [options[index], options[target]] = [options[target], options[index]];
+            const [moved] = options.splice(from, 1);
+            options.splice(to, 0, moved);
             return { ...d, options };
         });
+
+    const addOption = (inAnswer: boolean) =>
+        setDraft((d) => ({ ...d, options: [...d.options, { ...newOption(), inAnswer }] }));
 
     const removeOption = (key: string) =>
         setDraft((d) => ({ ...d, options: d.options.filter((o) => o.key !== key) }));
@@ -83,9 +95,48 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
         orderNumbers.push(option.inAnswer ? ++counter : null);
     }
 
+    // строка варианта; handle — ручка перетаскивания (только в «Последовательности»)
+    const renderOption = (option: OptionDraft, index: number, handle?: ReactNode) => {
+        const order = draft.type === 'ORDER';
+        return (
+            <View key={option.key} style={[styles.optionRow, order && styles.optionRowOrder]}>
+                {handle}
+                {order ? (
+                    <OrderToggle
+                        number={orderNumbers[index]}
+                        onPress={() => updateOption(option.key, { inAnswer: !option.inAnswer })}
+                    />
+                ) : (
+                    <ChoiceMarker type={draft.type} option={option} onPress={() => toggleCorrect(option.key)} />
+                )}
+                <TextInput
+                    value={option.text}
+                    onChangeText={(text) => updateOption(option.key, { text })}
+                    placeholder={order ? (option.inAnswer ? 'Слово' : 'Лишнее слово') : `Вариант ${index + 1}`}
+                    placeholderTextColor={AppColors.textSecondary}
+                    style={styles.optionInput}
+                />
+                {order && desktop ? (
+                    <>
+                        <IconButton icon="chevron-up" label="Выше" onPress={() => moveOption(index, index - 1)} disabled={index === 0} />
+                        <IconButton
+                            icon="chevron-down"
+                            label="Ниже"
+                            onPress={() => moveOption(index, index + 1)}
+                            disabled={index === draft.options.length - 1}
+                        />
+                    </>
+                ) : null}
+                <IconButton icon="close" label="Удалить вариант" color={AppColors.error} onPress={() => removeOption(option.key)} />
+            </View>
+        );
+    };
+
     return (
         <Card style={styles.form}>
-            <Text style={styles.formTitle}>{isNew ? 'Новый вопрос' : 'Редактирование вопроса'}</Text>
+            <FormHeader title={isNew ? 'Новый вопрос' : 'Редактирование вопроса'} onClose={onCancel} />
+
+            <MediaField kind="audio" label="Аудио к вопросу (необязательно)" draft={draft.audio} onChange={(audio) => setDraft((d) => ({ ...d, audio }))} />
 
             <MarkdownField
                 label="Текст вопроса"
@@ -99,52 +150,33 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
             <Segmented value={draft.type} options={TYPE_OPTIONS} onChange={(type) => setDraft((d) => changeQuestionType(d, type))} />
             <Text style={styles.hint}>{TYPE_HINTS[draft.type]}</Text>
 
-            <Text style={styles.label}>Варианты ответа</Text>
-            {draft.options.map((option, index) => {
-                const number = draft.type === 'ORDER' ? orderNumbers[index] : null;
-                return (
-                    <View key={option.key} style={styles.optionRow}>
-                        <OptionMarker
-                            type={draft.type}
-                            option={option}
-                            number={number}
-                            onPress={() => (draft.type === 'ORDER'
-                                ? updateOption(option.key, { inAnswer: !option.inAnswer })
-                                : toggleCorrect(option.key))}
-                        />
-                        <TextInput
-                            value={option.text}
-                            onChangeText={(text) => updateOption(option.key, { text })}
-                            placeholder={`Вариант ${index + 1}`}
-                            placeholderTextColor={AppColors.textSecondary}
-                            style={styles.optionInput}
-                        />
-                        {draft.type === 'ORDER' ? (
-                            <>
-                                <IconButton icon="chevron-up" label="Выше" onPress={() => moveOption(index, -1)} disabled={index === 0} />
-                                <IconButton
-                                    icon="chevron-down"
-                                    label="Ниже"
-                                    onPress={() => moveOption(index, 1)}
-                                    disabled={index === draft.options.length - 1}
-                                />
-                            </>
-                        ) : null}
-                        <IconButton icon="close" label="Удалить вариант" color={AppColors.error} onPress={() => removeOption(option.key)} />
-                    </View>
-                );
-            })}
+            <Text style={styles.label}>{draft.type === 'ORDER' ? 'Слова' : 'Варианты ответа'}</Text>
+            {draft.type === 'ORDER' ? (
+                <DraggableList
+                    items={draft.options}
+                    keyOf={(option) => option.key}
+                    rowHeight={ORDER_ROW_HEIGHT}
+                    onReorder={moveOption}
+                    renderItem={(option, index, handle) => renderOption(option, index, handle)}
+                />
+            ) : draft.options.map((option, index) => renderOption(option, index))}
 
-            <Button
-                title="Добавить вариант"
-                icon="add"
-                variant="secondary"
-                small
-                onPress={() => setDraft((d) => ({ ...d, options: [...d.options, newOption()] }))}
-                style={styles.addOption}
-            />
-
-            <MediaField kind="audio" label="Аудио к вопросу (необязательно)" draft={draft.audio} onChange={(audio) => setDraft((d) => ({ ...d, audio }))} />
+            {draft.type === 'ORDER' ? (
+                <View style={styles.addButtons}>
+                    <Button title="Добавить слово" icon="add" variant="secondary" small onPress={() => addOption(true)} />
+                    <Button title="Добавить лишнее слово" icon="add" variant="secondary" small onPress={() => addOption(false)} />
+                </View>
+            ) : (
+                <Button
+                    title="Добавить вариант"
+                    icon="add"
+                    variant="secondary"
+                    small
+                    // inAnswer как у новых вариантов раньше: если тип сменят на «Последовательность», слово войдёт в ответ
+                    onPress={() => addOption(true)}
+                    style={styles.addOption}
+                />
+            )}
 
             <ErrorBanner message={error} />
 
@@ -156,29 +188,30 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
     );
 }
 
-// Отметка правильности слева от варианта: кружок (один ответ), квадрат (несколько) или номер (последовательность)
-function OptionMarker({ type, option, number, onPress }: {
+// «Последовательность»: входит ли слово в ответ. Номер — его место в правильном ответе, «Лишнее» — не входит
+function OrderToggle({ number, onPress }: { number: number | null; onPress: () => void }) {
+    const inAnswer = number !== null;
+    return (
+        <Pressable
+            accessibilityRole="switch"
+            accessibilityState={{ checked: inAnswer }}
+            accessibilityLabel={inAnswer ? `Входит в ответ, место ${number}` : 'Лишнее слово, в ответ не входит'}
+            onPress={onPress}
+            hitSlop={4}
+            style={({ pressed }) => [styles.orderToggle, inAnswer ? styles.orderToggleIn : styles.orderToggleOut, pressed && styles.pressed]}
+        >
+            <Ionicons name={inAnswer ? 'checkmark' : 'close'} size={14} color={inAnswer ? '#fff' : AppColors.error} />
+            <Text style={[styles.orderToggleText, !inAnswer && styles.orderToggleTextOut]}>{inAnswer ? number : 'Лишнее'}</Text>
+        </Pressable>
+    );
+}
+
+// Отметка правильности слева от варианта: кружок (один ответ) или квадрат (несколько)
+function ChoiceMarker({ type, option, onPress }: {
     type: QuestionType;
     option: OptionDraft;
-    number: number | null;
     onPress: () => void;
 }) {
-    if (type === 'ORDER') {
-        return (
-            <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: option.inAnswer }}
-                accessibilityLabel="Входит в правильный ответ"
-                onPress={onPress}
-                style={[styles.orderMarker, option.inAnswer && styles.markerActive]}
-            >
-                {number !== null
-                    ? <Text style={styles.orderNumber}>{number}</Text>
-                    : <Ionicons name="remove" size={16} color={AppColors.textSecondary} />}
-            </Pressable>
-        );
-    }
-
     const single = type === 'SINGLE_CHOICE';
     return (
         <Pressable
@@ -198,12 +231,6 @@ const styles = StyleSheet.create({
     form: {
         borderColor: AppColors.blue,
     },
-    formTitle: {
-        color: AppColors.text,
-        fontSize: 18,
-        fontWeight: '800',
-        marginBottom: 16,
-    },
     label: {
         color: AppColors.textSecondary,
         fontSize: 14,
@@ -221,6 +248,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 6,
         marginBottom: 8,
+    },
+    // высоту строки задаёт DraggableList (ORDER_ROW_HEIGHT), отступ между строками входит в неё
+    optionRowOrder: {
+        height: ORDER_ROW_HEIGHT - 8,
+        marginBottom: 0,
     },
     optionInput: {
         flex: 1,
@@ -249,22 +281,45 @@ const styles = StyleSheet.create({
         backgroundColor: AppColors.accent,
         borderColor: AppColors.accent,
     },
-    orderMarker: {
-        width: 28,
-        height: 28,
-        borderRadius: 8,
+    orderToggle: {
+        width: 86,
+        height: 32,
+        borderRadius: 16,
         borderWidth: 2,
-        borderColor: AppColors.border,
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 4,
     },
-    orderNumber: {
+    orderToggleIn: {
+        backgroundColor: AppColors.accent,
+        borderColor: AppColors.accent,
+    },
+    orderToggleOut: {
+        backgroundColor: AppColors.errorBackground,
+        borderColor: AppColors.errorBackground,
+    },
+    orderToggleText: {
         color: '#fff',
         fontWeight: '800',
         fontSize: 14,
     },
+    orderToggleTextOut: {
+        color: AppColors.error,
+        fontSize: 13,
+    },
+    pressed: {
+        opacity: 0.6,
+    },
     addOption: {
         alignSelf: 'flex-start',
+        marginBottom: 16,
+    },
+    addButtons: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 8,
         marginBottom: 16,
     },
     buttons: {

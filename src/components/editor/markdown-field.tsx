@@ -97,11 +97,6 @@ export function MarkdownField({ label, value, onChangeText, placeholder, preview
                 </Pressable>
             </View>
 
-            {preview ? null : (
-                <Muted style={styles.hint}>
-                    Markdown: **жирный**, _курсив_, # заголовок, - список, &gt; цитата, [ссылка](https://…)
-                </Muted>
-            )}
         </View>
     );
 }
@@ -181,9 +176,5 @@ const styles = StyleSheet.create({
     },
     pressed: {
         opacity: 0.6,
-    },
-    hint: {
-        marginTop: 6,
-        fontSize: 12,
     },
 });

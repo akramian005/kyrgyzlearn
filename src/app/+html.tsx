@@ -15,6 +15,8 @@ export default function Root({ children }: PropsWithChildren) {
                 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover" />
                 <meta name="theme-color" content={AppColors.background} />
                 <meta name="color-scheme" content="dark" />
+                {/* иконка при «Добавить на экран Домой» на iPhone (файл в public/) */}
+                <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
                 <ScrollViewStyleReset />
                 <style dangerouslySetInnerHTML={{ __html: pageBackground }} />
             </head>
@@ -26,4 +28,11 @@ export default function Root({ children }: PropsWithChildren) {
 const pageBackground = `
 html, body, #root {
     background-color: ${AppColors.background};
+}
+/* у многострочных полей свой ползунок (ScrollThumb в app-ui) — системный скрываем, чтобы не было двух */
+textarea {
+    scrollbar-width: none;
+}
+textarea::-webkit-scrollbar {
+    display: none;
 }`;

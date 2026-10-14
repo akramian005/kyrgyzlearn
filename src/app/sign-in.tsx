@@ -6,6 +6,7 @@ import { useSession } from '@/auth/session';
 import { AuthScreen } from '@/components/auth-screen';
 import { ErrorBanner, Button, TextField } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
+import { isConnectionError } from '@/lib/api';
 
 export default function SignInScreen() {
     const { signIn } = useSession();
@@ -27,7 +28,8 @@ export default function SignInScreen() {
             // после успешного входа Stack.Protected сам переключит на главный экран
             await signIn(email.trim(), password);
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Не удалось войти');
+            // о потере связи уже сообщило всплывающее уведомление
+            setError(isConnectionError(e) ? null : e instanceof Error ? e.message : 'Не удалось войти');
             setLoading(false);
         }
     };

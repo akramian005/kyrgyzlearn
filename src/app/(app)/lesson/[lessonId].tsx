@@ -1,11 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, ErrorBanner, IconButton, LoadingView } from '@/components/app-ui';
+import { Button, ErrorBanner, goBack, IconButton, LoadingView, OfflineState } from '@/components/app-ui';
+import { useAnswerSounds } from '@/components/player/answer-sounds';
 import { MessageStep } from '@/components/player/message-step';
 import { QuestionStep } from '@/components/player/question-step';
 import { AppColors } from '@/constants/app-colors';
@@ -20,15 +21,17 @@ const PLAYER_MAX_WIDTH = 640;
 export default function LessonPlayerScreen() {
     const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
     const api = useApi();
-    const { data: lesson, error, loading } = useLoader(() => api.lessons.get(Number(lessonId)));
+    const { data: lesson, error, loading, offline, reload } = useLoader(() => api.lessons.get(Number(lessonId)));
 
     if (loading && !lesson) return <LoadingView />;
 
     if (!lesson) {
         return (
             <View style={[styles.screen, styles.centered]}>
-                <ErrorBanner message={error ?? 'Урок не найден'} />
-                <Button title="Назад" variant="secondary" onPress={() => router.back()} />
+                {offline
+                    ? <OfflineState onRetry={() => void reload()} />
+                    : <ErrorBanner message={error ?? 'Урок не найден'} />}
+                <Button title="Назад" variant="secondary" onPress={() => goBack()} />
             </View>
         );
     }
@@ -65,11 +68,12 @@ function Player({ lesson }: { lesson: Lesson }) {
         if (!finished) return;
         api.progress.completeLesson(lesson.id).then(
             () => setSaveError(null),
-            (e) => setSaveError(`Прогресс не сохранился: ${errorMessage(e)}`),
+            (e) => setSaveError(`Прогресс не сохранился: ${errorMessage(e) ?? 'нет связи с сервером'}`),
         );
     }, [finished, api, lesson.id]);
 
     const shakeX = useSharedValue(0);
+    const playAnswerSound = useAnswerSounds();
     const shakeStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shakeX.value }] }));
 
     const restart = () => {
@@ -101,7 +105,7 @@ function Player({ lesson }: { lesson: Lesson }) {
                 <View style={[styles.footer, footerPadding]}>
                     <View style={styles.footerInner}>
                         <Button title="Пройти ещё раз" variant="secondary" icon="refresh" onPress={restart} style={styles.flex} />
-                        <Button title="Готово" onPress={() => router.back()} style={styles.flex} />
+                        <Button title="Готово" onPress={() => goBack()} style={styles.flex} />
                     </View>
                 </View>
             </View>
@@ -112,6 +116,7 @@ function Player({ lesson }: { lesson: Lesson }) {
         if (current.kind !== 'QUESTION') return;
         const correct = isAnswerCorrect(current, selected);
         setResult(correct);
+        void playAnswerSound(correct);
         if (!correct) {
             setMistakes((prev) => new Set(prev).add(current.id));
             shakeX.set(withSequence(
@@ -140,7 +145,7 @@ function Player({ lesson }: { lesson: Lesson }) {
             const leave = await confirmAsync('Выйти из урока?', 'Прогресс этого прохождения не сохранится.', 'Выйти');
             if (!leave) return;
         }
-        router.back();
+        goBack();
     };
 
     const answered = result !== null;

@@ -6,6 +6,7 @@ import { useSession } from '@/auth/session';
 import { AuthScreen } from '@/components/auth-screen';
 import { ErrorBanner, Button, TextField } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
+import { isConnectionError } from '@/lib/api';
 import { MAX_NAME_LENGTH, MIN_PASSWORD_LENGTH, validateEmail, validateName, validateNewPassword } from '@/lib/validation';
 
 function validate(name: string, email: string, password: string, passwordRepeat: string): string | null {
@@ -34,7 +35,8 @@ export default function SignUpScreen() {
         try {
             await signUp(name.trim(), email.trim(), password);
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Не удалось зарегистрироваться');
+            // о потере связи уже сообщило всплывающее уведомление
+            setError(isConnectionError(e) ? null : e instanceof Error ? e.message : 'Не удалось зарегистрироваться');
             setLoading(false);
         }
     };

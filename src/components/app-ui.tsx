@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import React, { useState, type ComponentProps, type PropsWithChildren, type Ref } from 'react';
 import {
     ActivityIndicator,
+    Platform,
     Pressable,
     RefreshControl,
     ScrollView,
@@ -17,6 +18,7 @@ import {
 } from 'react-native';
 
 import { AppColors } from '@/constants/app-colors';
+import { textareaContentHeight } from '@/lib/textarea-height';
 
 // Общие элементы интерфейса — тёмная тема в стиле Duolingo, одинаково на вебе и телефоне
 
@@ -48,14 +50,19 @@ export function Page({ children, onRefresh, refreshing = false, ref }: PropsWith
     );
 }
 
+// Назад по истории; если её нет (страницу открыли по ссылке или обновили в браузере) —
+// на запасной экран, иначе router.back() ничего не делает и пишет предупреждение GO_BACK
+export function goBack(fallback: Href = '/') {
+    if (router.canGoBack()) router.back();
+    else router.replace(fallback);
+}
+
 // Шапка вложенных экранов: стрелка назад + заголовок
 export function ScreenHeader({ title, right }: { title: string; right?: React.ReactNode }) {
-    const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
-
     return (
         <View style={styles.header}>
             <View style={styles.headerInner}>
-                <IconButton icon="arrow-back" onPress={goBack} label="Назад" />
+                <IconButton icon="arrow-back" onPress={() => goBack()} label="Назад" />
                 <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
                 {right}
             </View>
@@ -112,6 +119,16 @@ export function EmptyState({ icon, title, text }: { icon: IconName; title: strin
     );
 }
 
+// Экран без данных, потому что сервер недоступен (сама ошибка — во всплывающем уведомлении)
+export function OfflineState({ onRetry }: { onRetry: () => void }) {
+    return (
+        <>
+            <EmptyState icon="cloud-offline-outline" title="Нет связи с сервером" text="Проверьте интернет и попробуйте ещё раз" />
+            <Button title="Повторить" icon="refresh" variant="secondary" onPress={onRetry} />
+        </>
+    );
+}
+
 export function ErrorBanner({ message }: { message: string | null | undefined }) {
     if (!message) return null;
     return (
@@ -123,9 +140,25 @@ export function ErrorBanner({ message }: { message: string | null | undefined })
 
 // ---------- Поля и кнопки ----------
 
-// у поля пароля (secureTextEntry) справа «глазик» — показать/скрыть вводимый текст
-export function TextField({ label, multiline, style, secureTextEntry, ...props }: TextInputProps & { label: string }) {
+// у поля ввода рамка 2px с каждой стороны — её нет в scrollHeight, добавляем к высоте
+const INPUT_BORDERS = 4;
+// Многострочное поле растёт с текстом, но не выше MULTILINE_MAX_LINES строк — дальше текст прокручивается внутри поля
+const MULTILINE_LINE_HEIGHT = 22;
+const MULTILINE_MAX_LINES = 7;
+const MULTILINE_MAX_HEIGHT = MULTILINE_LINE_HEIGHT * MULTILINE_MAX_LINES + 12 * 2 + INPUT_BORDERS; // + отступы и рамка
+
+// у поля пароля (secureTextEntry) справа «глазик» — показать/скрыть вводимый текст.
+// У многострочного поля справа ползунок, когда текст не помещается и прокручивается внутри.
+export function TextField({ label, multiline, style, secureTextEntry, onChange, onContentSizeChange, onScroll, ...props }: TextInputProps & { label: string }) {
     const [hidden, setHidden] = useState(true);
+    // для ползунка: видимая высота поля, полная высота текста и насколько прокручено
+    const [visibleHeight, setVisibleHeight] = useState(0);
+    const [contentHeight, setContentHeight] = useState(0);
+    const [scrollY, setScrollY] = useState(0);
+    // Веб: <textarea> сам не растёт — подгоняем высоту под текст (до MULTILINE_MAX_HEIGHT, как на телефоне).
+    // На телефоне многострочное поле растёт само, там высоту не трогаем.
+    const autoGrow = multiline && Platform.OS === 'web';
+    const [webHeight, setWebHeight] = useState<number | undefined>(undefined);
 
     return (
         <View style={styles.field}>
@@ -135,9 +168,40 @@ export function TextField({ label, multiline, style, secureTextEntry, ...props }
                     placeholderTextColor={AppColors.textSecondary}
                     multiline={multiline}
                     secureTextEntry={secureTextEntry && hidden}
-                    style={[styles.input, multiline && styles.inputMultiline, secureTextEntry && styles.inputWithToggle, style]}
+                    style={[
+                        styles.input,
+                        multiline && styles.inputMultiline,
+                        secureTextEntry && styles.inputWithToggle,
+                        style,
+                        autoGrow && webHeight !== undefined ? { height: Math.min(webHeight, MULTILINE_MAX_HEIGHT) } : null,
+                    ]}
+                    // при первом показе: текст выше поля — растягиваем
+                    onLayout={multiline ? (e) => setVisibleHeight(e.nativeEvent.layout.height - INPUT_BORDERS) : props.onLayout}
+                    onContentSizeChange={(e) => {
+                        if (autoGrow) setWebHeight(e.nativeEvent.contentSize.height + INPUT_BORDERS);
+                        // в вебе это scrollHeight: при росте он точный, а при сжатии его уточнит onChange
+                        if (multiline) setContentHeight(e.nativeEvent.contentSize.height);
+                        onContentSizeChange?.(e);
+                    }}
+                    onChange={(e) => {
+                        // меряем на невидимой копии поля — так поле может и сжаться, и не дёргается
+                        if (autoGrow) {
+                            const height = textareaContentHeight(e.target as unknown as HTMLTextAreaElement);
+                            setWebHeight(height);
+                            setContentHeight(height - INPUT_BORDERS);
+                        }
+                        onChange?.(e);
+                    }}
+                    onScroll={(e) => {
+                        // телефон присылает contentOffset, веб — обычное событие прокрутки <textarea>
+                        if (multiline) {
+                            setScrollY(e.nativeEvent.contentOffset?.y ?? (e.target as unknown as HTMLTextAreaElement).scrollTop ?? 0);
+                        }
+                        onScroll?.(e);
+                    }}
                     {...props}
                 />
+                {multiline ? <ScrollThumb visible={visibleHeight} content={contentHeight} offset={scrollY} /> : null}
                 {secureTextEntry ? (
                     <Pressable
                         accessibilityRole="button"
@@ -151,6 +215,24 @@ export function TextField({ label, multiline, style, secureTextEntry, ...props }
                 ) : null}
             </View>
         </View>
+    );
+}
+
+// Ползунок прокрутки многострочного поля: свой, а не системный — на телефоне системный виден
+// только во время прокрутки, а этот показывает всегда, что текст длиннее поля и где вы сейчас.
+const THUMB_INSET = 6;
+const THUMB_MIN = 24;
+
+function ScrollThumb({ visible, content, offset }: { visible: number; content: number; offset: number }) {
+    if (visible <= 0 || content <= visible + 1) return null;
+    const track = visible - THUMB_INSET * 2;
+    const length = Math.max(THUMB_MIN, (track * visible) / content);
+    const progress = Math.min(Math.max(offset / (content - visible), 0), 1);
+    return (
+        <View
+            pointerEvents="none"
+            style={[styles.scrollThumb, { height: length, top: INPUT_BORDERS / 2 + THUMB_INSET + (track - length) * progress }]}
+        />
     );
 }
 
@@ -374,7 +456,18 @@ const styles = StyleSheet.create({
     },
     inputMultiline: {
         minHeight: 90,
+        lineHeight: MULTILINE_LINE_HEIGHT,
+        // дальше 7 строк поле не растёт — текст прокручивается внутри
+        maxHeight: MULTILINE_MAX_HEIGHT,
         textAlignVertical: 'top',
+    },
+    scrollThumb: {
+        position: 'absolute',
+        right: 6,
+        width: 4,
+        borderRadius: 2,
+        backgroundColor: AppColors.textSecondary,
+        opacity: 0.7,
     },
     inputWithToggle: {
         paddingRight: 52, // место под «глазик», чтобы текст под него не заезжал
@@ -410,9 +503,10 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
         borderColor: AppColors.errorBackground,
     },
+    // «Отмена»: без заливки, но с серой рамкой — чтобы было видно границы кнопки
     button_ghost: {
         backgroundColor: 'transparent',
-        borderColor: 'transparent',
+        borderColor: AppColors.border,
     },
     buttonSmall: {
         minHeight: 36,
