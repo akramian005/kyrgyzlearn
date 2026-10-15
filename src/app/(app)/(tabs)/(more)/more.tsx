@@ -10,7 +10,7 @@ import { useApi, useLoader } from '@/lib/hooks';
 
 // «Прочее»: разделы, которым не нашлось места в других вкладках (аккаунт и выход — в «Профиле»).
 // Блок «Мои курсы» ведёт в конструктор своих курсов, у админа он называется «Официальные курсы»
-// и ведёт в конструктор официальных.
+// и ведёт в конструктор официальных. «Генерация речи» — озвучка кыргызского текста.
 export default function MoreScreen() {
     const api = useApi();
     const isAdmin = useSession().session?.role === 'ADMIN';
@@ -32,6 +32,17 @@ export default function MoreScreen() {
                     <Text style={styles.subtitle}>
                         {count === undefined ? '…' : count === 0 ? 'Создайте первый курс' : coursesLabel(count)}
                     </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color={AppColors.textSecondary} />
+            </Card>
+
+            <Card onPress={() => router.push('/tts')} style={styles.link}>
+                <View style={styles.icon}>
+                    <Ionicons name="mic" size={22} color={AppColors.blue} />
+                </View>
+                <View style={styles.body}>
+                    <Text style={styles.title}>Генерация речи</Text>
+                    <Text style={styles.subtitle}>Озвучить текст на кыргызском</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={22} color={AppColors.textSecondary} />
             </Card>

@@ -47,6 +47,8 @@ type RequestOptions = {
     method?: string;
     body?: unknown;
     token?: string | null;
+    // дольше обычного — для медленных операций (озвучка текста)
+    timeoutMs?: number;
 };
 
 const NO_CONNECTION = 'Нет связи с сервером';
@@ -65,13 +67,13 @@ export function isConnectionError(e: unknown): boolean {
     return e instanceof ApiError && e.status === 0;
 }
 
-async function request<T>(path: string, { method = 'GET', body, token }: RequestOptions = {}): Promise<T> {
+async function request<T>(path: string, { method = 'GET', body, token, timeoutMs = REQUEST_TIMEOUT_MS }: RequestOptions = {}): Promise<T> {
     const headers: Record<string, string> = { Accept: 'application/json' };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     let status: number;
     let text: string;
     try {
@@ -90,6 +92,33 @@ async function request<T>(path: string, { method = 'GET', body, token }: Request
     }
 
     return parseResponse<T>(status, text);
+}
+
+// Ответ — файл (например, WAV озвучки), а не JSON: возвращаем байты. Ошибка приходит JSON-ом, как у request
+async function requestBytes(path: string, { method = 'GET', body, token, timeoutMs = REQUEST_TIMEOUT_MS }: RequestOptions = {}): Promise<Uint8Array> {
+    const headers: Record<string, string> = { Accept: '*/*' };
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        let response: Response;
+        try {
+            response = await fetch(`${API_URL}${path}`, {
+                method,
+                headers,
+                body: body === undefined ? undefined : JSON.stringify(body),
+                signal: controller.signal,
+            });
+        } catch {
+            throw noConnection();
+        }
+        if (!response.ok) return parseResponse<never>(response.status, await response.text());
+        return new Uint8Array(await response.arrayBuffer());
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 // Загрузка картинки/аудио: на телефоне и в вебе файл отправляется по-разному (см. lib/upload).
@@ -181,6 +210,15 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
         }
     };
 
+    const callBytes = async (path: string, options: Omit<RequestOptions, 'token'> = {}) => {
+        try {
+            return await requestBytes(path, { ...options, token });
+        } catch (e) {
+            if (token && e instanceof ApiError && e.status === 401) onUnauthorized?.();
+            throw e;
+        }
+    };
+
     const upload = async (path: string, file: PickedFile) => {
         try {
             return await uploadRequest(path, token, file);
@@ -252,6 +290,13 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
             // видео открыли — считается просмотренным
             watchVideo: (courseId: number, videoId: number) =>
                 call<void>(`/api/progress/courses/${courseId}/videos/${videoId}`, { method: 'PUT' }),
+        },
+
+        // озвучка кыргызского текста: бэкенд генерирует WAV (сервис kyrgyz-learn-tts) и сразу отдаёт его байтами,
+        // на сервере файл не хранится. Генерация идёт секунды, в очереди — дольше, поэтому таймаут больше обычного
+        tts: {
+            synthesize: (text: string) =>
+                callBytes('/api/tts', { method: 'POST', body: { text }, timeoutMs: 3 * 60 * 1000 }),
         },
 
         // сохранённые курсы текущего пользователя
