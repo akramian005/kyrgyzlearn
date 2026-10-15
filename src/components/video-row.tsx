@@ -2,8 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/app-ui';
-import { markdownToPlain } from '@/components/markdown';
+import { Card, pressWithBlur } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
 import type { CourseVideo } from '@/lib/types';
 
@@ -24,7 +23,7 @@ export function VideoRow({ video, onPress, actions, showProgress = false }: {
             <Pressable
                 accessibilityRole={onPress ? 'button' : undefined}
                 disabled={!onPress}
-                onPress={onPress}
+                onPress={pressWithBlur(onPress)}
                 style={({ pressed }) => [styles.main, pressed && styles.pressed]}
             >
                 <View style={[styles.icon, empty && styles.iconEmpty, watched && styles.iconWatched]}>
@@ -33,9 +32,6 @@ export function VideoRow({ video, onPress, actions, showProgress = false }: {
 
                 <View style={styles.body}>
                     <Text style={styles.title} numberOfLines={2}>{video.title}</Text>
-                    {video.description ? (
-                        <Text style={styles.description} numberOfLines={2}>{markdownToPlain(video.description)}</Text>
-                    ) : null}
                     <Text style={styles.meta}>
                         {watched ? <Text style={styles.watched}>Просмотрено · </Text> : null}
                         {empty ? 'Видео ещё не загружено' : 'Видео'}
@@ -85,10 +81,6 @@ const styles = StyleSheet.create({
         color: AppColors.text,
         fontSize: 16,
         fontWeight: '800',
-    },
-    description: {
-        color: AppColors.textSecondary,
-        fontSize: 14,
     },
     meta: {
         color: AppColors.textSecondary,

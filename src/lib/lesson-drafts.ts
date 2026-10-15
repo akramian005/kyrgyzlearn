@@ -1,6 +1,6 @@
 import { emptyMedia, type MediaDraft } from '@/components/editor/media-field';
 import type { Api, OptionInput } from '@/lib/api';
-import type { LessonMessage, Question, QuestionType } from '@/lib/types';
+import { MAX_MATCHING_PAIRS, type LessonMessage, type Question, type QuestionType } from '@/lib/types';
 
 // Черновики вопросов и сообщений в редакторе урока + сохранение их на бэкенд
 
@@ -10,6 +10,7 @@ export type OptionDraft = {
     text: string;
     correct: boolean;    // SINGLE_CHOICE / MULTIPLE_CHOICE
     inAnswer: boolean;   // ORDER: входит в правильную последовательность (порядок = порядок в списке)
+    matchText: string;   // MATCHING: вторая половина пары
 };
 
 export type QuestionDraft = {
@@ -29,7 +30,7 @@ let keyCounter = 0;
 
 export function newOption(): OptionDraft {
     keyCounter += 1;
-    return { key: `new-${keyCounter}`, id: null, text: '', correct: false, inAnswer: true };
+    return { key: `new-${keyCounter}`, id: null, text: '', correct: false, inAnswer: true, matchText: '' };
 }
 
 export function newQuestionDraft(): QuestionDraft {
@@ -43,6 +44,7 @@ export function questionToDraft(question: Question): QuestionDraft {
         text: option.text,
         correct: option.correct,
         inAnswer: option.correctPosition !== null,
+        matchText: option.matchText ?? '',
     }));
 
     if (question.type === 'ORDER') {
@@ -79,7 +81,7 @@ export function changeQuestionType(draft: QuestionDraft, type: QuestionType): Qu
 
 export function validateQuestion(draft: QuestionDraft): string | null {
     if (!draft.text.trim()) return 'Введите текст вопроса';
-    if (draft.options.length < 2) return 'Нужно минимум 2 варианта ответа';
+    if (draft.options.length < 2) return draft.type === 'MATCHING' ? 'Нужно минимум 2 пары' : 'Нужно минимум 2 варианта ответа';
     if (draft.options.some((option) => !option.text.trim())) return 'Заполните текст всех вариантов или удалите пустые';
 
     const correctCount = draft.options.filter((option) => option.correct).length;
@@ -92,6 +94,9 @@ export function validateQuestion(draft: QuestionDraft): string | null {
             return correctCount >= 1 ? null : 'Отметьте хотя бы один правильный вариант';
         case 'ORDER':
             return inAnswerCount >= 2 ? null : 'В правильной последовательности должно быть минимум 2 варианта';
+        case 'MATCHING':
+            if (draft.options.length > MAX_MATCHING_PAIRS) return `Можно не больше ${MAX_MATCHING_PAIRS} пар`;
+            return draft.options.some((option) => !option.matchText.trim()) ? 'Заполните обе половины каждой пары' : null;
     }
 }
 
@@ -101,9 +106,17 @@ export function validateMessage(draft: MessageDraft): string | null {
 
 function toOptionInputs(draft: QuestionDraft): OptionInput[] {
     let position = 0;
-    return draft.options.map((option) => draft.type === 'ORDER'
-        ? { text: option.text.trim(), correct: false, correctPosition: option.inAnswer ? position++ : null }
-        : { text: option.text.trim(), correct: option.correct, correctPosition: null });
+    return draft.options.map((option) => {
+        const text = option.text.trim();
+        switch (draft.type) {
+            case 'ORDER':
+                return { text, correct: false, correctPosition: option.inAnswer ? position++ : null, matchText: null };
+            case 'MATCHING':
+                return { text, correct: false, correctPosition: null, matchText: option.matchText.trim() };
+            default:
+                return { text, correct: option.correct, correctPosition: null, matchText: null };
+        }
+    });
 }
 
 export async function applyMedia(draft: MediaDraft, upload: (file: NonNullable<MediaDraft['picked']>) => Promise<unknown>, remove: () => Promise<unknown>) {
@@ -145,7 +158,8 @@ export async function saveQuestion(api: Api, lessonId: number, original: Questio
             const changed = !before
                 || before.text !== input.text
                 || before.correct !== input.correct
-                || before.correctPosition !== input.correctPosition;
+                || before.correctPosition !== input.correctPosition
+                || (before.matchText ?? null) !== input.matchText;
             if (changed) await api.options.update(lessonId, questionId, option.id, input);
         }
     }

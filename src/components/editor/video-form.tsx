@@ -3,9 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Button, Card, ErrorBanner, Muted, TextField } from '@/components/app-ui';
 import { FormHeader } from '@/components/editor/form-header';
-import { MarkdownField } from '@/components/editor/markdown-field';
 import { MediaField } from '@/components/editor/media-field';
-import { DESCRIPTION_TEXT_STYLE } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
 import { validateVideo, type VideoDraft } from '@/lib/video-drafts';
 
@@ -45,12 +43,6 @@ export function VideoForm({ initial, isNew, onSave, onCancel }: {
                 value={draft.title}
                 onChangeText={(title) => setDraft((d) => ({ ...d, title }))}
                 placeholder="Например: Как здороваться по-кыргызски"
-            />
-            <MarkdownField
-                label="Описание (необязательно)"
-                value={draft.description}
-                onChangeText={(description) => setDraft((d) => ({ ...d, description }))}
-                previewStyle={DESCRIPTION_TEXT_STYLE}
             />
 
             <MediaField kind="video" label="Файл видео" draft={draft.file} onChange={(file) => setDraft((d) => ({ ...d, file }))} />

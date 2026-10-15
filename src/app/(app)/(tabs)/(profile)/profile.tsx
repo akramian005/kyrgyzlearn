@@ -92,6 +92,11 @@ function ProgressStats({ progress, error }: { progress: Progress | undefined; er
                     <Text style={styles.statValue}>{progress?.completedCourses ?? '—'}</Text>
                     <Text style={styles.statLabel}>курсов пройдено</Text>
                 </Card>
+                <Card style={styles.stat}>
+                    <Ionicons name="flash" size={28} color={AppColors.gold} />
+                    <Text style={styles.statValue}>{progress?.xp ?? '—'}</Text>
+                    <Text style={styles.statLabel}>XP</Text>
+                </Card>
             </View>
         </>
     );
@@ -543,6 +548,8 @@ const styles = StyleSheet.create({
         color: AppColors.textSecondary,
         fontSize: 13,
         fontWeight: '600',
+        // в три карточки подпись может перенестись на вторую строку
+        textAlign: 'center',
     },
     header: {
         flexDirection: 'row',

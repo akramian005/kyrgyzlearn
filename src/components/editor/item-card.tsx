@@ -73,6 +73,16 @@ export function ItemCard({ item, isFirst, isLast, onEdit, onDelete, onMove }: {
 }
 
 function OptionsPreview({ question }: { question: Question }) {
+    if (question.type === 'MATCHING') {
+        return (
+            <View style={styles.options}>
+                {question.options.map((option) => (
+                    <Text key={option.id} style={styles.optionCorrect}>{option.text} — {option.matchText}</Text>
+                ))}
+            </View>
+        );
+    }
+
     if (question.type === 'ORDER') {
         const answer = question.options
             .filter((option) => option.correctPosition !== null)

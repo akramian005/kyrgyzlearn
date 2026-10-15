@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-import type { AnswerOption, Course, CourseItem, CourseVideo, Lesson, LessonMessage, LessonSummary, Page, Progress, Question, QuestionType, Role, UserProfile } from '@/lib/types';
+import type { AnswerOption, Course, CourseItem, CourseVideo, Lesson, LessonMessage, LessonSummary, Page, Progress, Question, QuestionType, Role, Unit, UserProfile } from '@/lib/types';
 import type { PickedFile } from '@/lib/files';
 import { showToast } from '@/lib/toast';
 import { uploadFile } from '@/lib/upload';
@@ -155,11 +155,12 @@ export const authApi = {
 
 export type CourseInput = { title: string; description: string | null };
 
-export type LessonInput = { title: string; description: string | null };
+// у урока нет названия: создаётся пустым в юните unitId (position — место в юните, по умолчанию в конец)
+export type LessonInput = { unitId: number; position?: number };
 
 export type VideoInput = { title: string; description: string | null };
 
-export type OptionInput = { text: string; correct: boolean; correctPosition: number | null };
+export type OptionInput = { text: string; correct: boolean; correctPosition: number | null; matchText: string | null };
 
 export type QuestionInput = { text: string; type: QuestionType; options: OptionInput[]; position?: number };
 
@@ -219,12 +220,28 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
             // личные курсы всех пользователей по названию, постранично (page — с 0)
             search: (query: string, page: number, size: number) =>
                 call<Page<Course>>(`/api/courses/search?query=${encodeURIComponent(query)}&page=${page}&size=${size}`),
-            // переместить урок или видео на новую позицию; возвращает новый порядок
-            moveItem: (id: number, item: CourseItem, position: number) =>
+            // переместить урок или видео на позицию position внутри юнита unitId (по умолчанию — своего);
+            // возвращает новый порядок
+            moveItem: (id: number, item: CourseItem, position: number, unitId?: number) =>
                 call<CourseItem[]>(`/api/courses/${id}/items/position`, {
                     method: 'PATCH',
-                    body: { kind: item.kind, id: item.id, position },
+                    body: { kind: item.kind, id: item.id, position, unitId },
                 }),
+            // юниты курса по порядку, в каждом — его уроки и видео
+            units: (id: number) => call<Unit[]>(`/api/courses/${id}/units`),
+        },
+
+        units: {
+            create: (courseId: number, title: string) =>
+                call<Unit>(`/api/courses/${courseId}/units`, { method: 'POST', body: { title } }),
+            rename: (courseId: number, id: number, title: string) =>
+                call<void>(`/api/courses/${courseId}/units/${id}`, { method: 'PATCH', body: { title } }),
+            // переставить юнит; возвращает все юниты в новом порядке
+            move: (courseId: number, id: number, position: number) =>
+                call<Unit[]>(`/api/courses/${courseId}/units/${id}/position`, { method: 'PATCH', body: { position } }),
+            // удалить можно только пустой юнит
+            remove: (courseId: number, id: number) =>
+                call<void>(`/api/courses/${courseId}/units/${id}`, { method: 'DELETE' }),
         },
 
         // прогресс текущего пользователя: пройденные уроки и курсы
@@ -246,7 +263,7 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
 
         videos: {
             get: (courseId: number, id: number) => call<CourseVideo>(`/api/courses/${courseId}/videos/${id}`),
-            create: (courseId: number, input: VideoInput) =>
+            create: (courseId: number, input: VideoInput & { unitId: number }) =>
                 call<CourseVideo>(`/api/courses/${courseId}/videos`, { method: 'POST', body: input }),
             update: (courseId: number, id: number, input: Partial<VideoInput>) =>
                 call<CourseVideo>(`/api/courses/${courseId}/videos/${id}`, { method: 'PATCH', body: input }),
@@ -264,7 +281,7 @@ export function createApi(token: string | null, onUnauthorized?: () => void) {
             get: (id: number) => call<Lesson>(`/api/lessons/${id}`),
             create: (courseId: number, input: LessonInput) =>
                 call<Lesson>('/api/lessons', { method: 'POST', body: { ...input, courseId } }),
-            update: (id: number, input: Partial<LessonInput>) =>
+            update: (id: number, input: { title?: string | null; description?: string | null }) =>
                 call<Lesson>(`/api/lessons/${id}`, { method: 'PATCH', body: input }),
             remove: (id: number) => call<void>(`/api/lessons/${id}`, { method: 'DELETE' }),
             // переместить вопрос/сообщение на новую позицию внутри урока

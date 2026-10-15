@@ -4,7 +4,10 @@ export type Role = 'USER' | 'ADMIN';
 
 export type CourseType = 'OFFICIAL' | 'USER';
 
-export type QuestionType = 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'ORDER';
+export type QuestionType = 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'ORDER' | 'MATCHING';
+
+// в «Сопоставлении» не больше 10 пар (то же ограничение на бэкенде, QuestionType.MAX_MATCHING_PAIRS)
+export const MAX_MATCHING_PAIRS = 10;
 
 export type Page<T> = {
     content: T[];
@@ -41,22 +44,26 @@ export type Course = {
     saved: boolean;
 };
 
+// у урока нет своего названия — он «Урок N» в своём юните (title/description остались у старых уроков)
 export type LessonSummary = {
     kind: 'LESSON';
     id: number;
     courseId: number;
-    title: string;
+    title: string | null;
     description: string | null;
     position: number;
     itemCount: number;
     // урок пройден текущим пользователем
     completed: boolean;
+    unitId: number | null;
 };
 
 // Сводка прогресса для профиля
 export type Progress = {
     completedLessons: number;
     completedCourses: number;
+    // опыт: 5 XP за каждый пройденный урок и 20 XP за каждый пройденный курс
+    xp: number;
 };
 
 // Видео курса: стоит в общем списке курса между уроками
@@ -71,10 +78,20 @@ export type CourseVideo = {
     videoUrl: string | null;
     // текущий пользователь уже открывал это видео
     watched: boolean;
+    unitId: number | null;
 };
 
 // элемент курса: уроки и видео идут одним списком с общей нумерацией position
 export type CourseItem = LessonSummary | CourseVideo;
+
+// Юнит (этап) курса: на экране курса — кружок «змейки», внутри — уроки и видео по порядку
+export type Unit = {
+    id: number;
+    courseId: number;
+    title: string;
+    position: number;
+    items: CourseItem[];
+};
 
 export type AnswerOption = {
     id: number;
@@ -84,6 +101,8 @@ export type AnswerOption = {
     correct: boolean;
     // ORDER: место в правильной последовательности, null — лишний вариант
     correctPosition: number | null;
+    // MATCHING: вторая половина пары, с которой сопоставляется text
+    matchText: string | null;
 };
 
 export type Question = {
@@ -110,7 +129,7 @@ export type LessonItem = Question | LessonMessage;
 export type Lesson = {
     id: number;
     courseId: number;
-    title: string;
+    title: string | null;
     description: string | null;
     position: number;
     items: LessonItem[];
@@ -120,4 +139,5 @@ export const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
     SINGLE_CHOICE: 'Один ответ',
     MULTIPLE_CHOICE: 'Несколько ответов',
     ORDER: 'Последовательность',
+    MATCHING: 'Сопоставление',
 };

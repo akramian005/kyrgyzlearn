@@ -2,8 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Card } from '@/components/app-ui';
-import { markdownToPlain } from '@/components/markdown';
+import { Card, pressWithBlur } from '@/components/app-ui';
 import { AppColors } from '@/constants/app-colors';
 import type { CourseItem, LessonSummary } from '@/lib/types';
 
@@ -20,7 +19,7 @@ export function lessonNumber(items: CourseItem[], lesson: LessonSummary): number
     return items.filter((item) => item.kind === 'LESSON').indexOf(lesson);
 }
 
-// Строка урока: номер в кружке, название, число шагов (вопросы + сообщения) и действия справа.
+// Строка урока: номер в кружке, «Урок N», число шагов (вопросы + сообщения) и действия справа.
 // showProgress — при прохождении курса у пройденного урока вместо номера золотая галочка
 // (в редакторе курса не нужен: там важнее номер).
 // Нажимается только левая часть: кнопки действий не должны лежать внутри другой кнопки (в вебе это <button> в <button>)
@@ -39,7 +38,7 @@ export function LessonRow({ lesson, index, onPress, actions, showProgress = fals
             <Pressable
                 accessibilityRole={onPress ? 'button' : undefined}
                 disabled={!onPress}
-                onPress={onPress}
+                onPress={pressWithBlur(onPress)}
                 style={({ pressed }) => [styles.main, pressed && styles.pressed]}
             >
                 <View style={[styles.number, empty && styles.numberEmpty, completed && styles.numberCompleted]}>
@@ -49,10 +48,8 @@ export function LessonRow({ lesson, index, onPress, actions, showProgress = fals
                 </View>
 
                 <View style={styles.body}>
-                    <Text style={styles.title} numberOfLines={2}>{lesson.title}</Text>
-                    {lesson.description ? (
-                        <Text style={styles.description} numberOfLines={2}>{markdownToPlain(lesson.description)}</Text>
-                    ) : null}
+                    {/* у урока нет своего названия — он «Урок N» в своём юните */}
+                    <Text style={styles.title} numberOfLines={1}>Урок {index + 1}</Text>
                     <Text style={styles.meta}>
                         {completed ? <Text style={styles.completed}>Пройден · </Text> : null}
                         {empty ? 'Пока пустой' : itemsLabel(lesson.itemCount)}
@@ -107,10 +104,6 @@ const styles = StyleSheet.create({
         color: AppColors.text,
         fontSize: 16,
         fontWeight: '800',
-    },
-    description: {
-        color: AppColors.textSecondary,
-        fontSize: 14,
     },
     meta: {
         color: AppColors.textSecondary,

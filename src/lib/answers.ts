@@ -1,6 +1,7 @@
 import type { AnswerOption, Question } from '@/lib/types';
 
-// Проверка ответов ученика. selectedIds — выбранные варианты (для ORDER — в порядке выбора)
+// Проверка ответов ученика. selectedIds — выбранные варианты (для ORDER — в порядке выбора);
+// для MATCHING — пары подряд: [вариант слева, вариант справа, вариант слева, вариант справа, …]
 
 export function correctSequence(question: Question): AnswerOption[] {
     return question.options
@@ -8,7 +9,24 @@ export function correctSequence(question: Question): AnswerOption[] {
         .sort((a, b) => a.correctPosition! - b.correctPosition!);
 }
 
+// пары ответа в «Сопоставлении»: [id варианта слева, id варианта, чей matchText выбран справа]
+export function matchingPairs(selectedIds: number[]): [number, number][] {
+    const pairs: [number, number][] = [];
+    for (let i = 0; i + 1 < selectedIds.length; i += 2) pairs.push([selectedIds[i], selectedIds[i + 1]]);
+    return pairs;
+}
+
+// можно ли нажимать «Проверить»: в «Сопоставлении» — когда соединены все пары
+export function isAnswerComplete(question: Question, selectedIds: number[]): boolean {
+    if (question.type === 'MATCHING') return selectedIds.length === question.options.length * 2;
+    return selectedIds.length > 0;
+}
+
 export function isAnswerCorrect(question: Question, selectedIds: number[]): boolean {
+    if (question.type === 'MATCHING') {
+        const pairs = matchingPairs(selectedIds);
+        return pairs.length === question.options.length && pairs.every(([left, right]) => left === right);
+    }
     if (question.type === 'ORDER') {
         const expected = correctSequence(question).map((option) => option.id);
         return expected.length === selectedIds.length && expected.every((id, i) => id === selectedIds[i]);
@@ -20,6 +38,9 @@ export function isAnswerCorrect(question: Question, selectedIds: number[]): bool
 
 // текст правильного ответа для подсказки после ошибки
 export function correctAnswerText(question: Question): string {
+    if (question.type === 'MATCHING') {
+        return question.options.map((option) => `${option.text} — ${option.matchText ?? ''}`).join(', ');
+    }
     if (question.type === 'ORDER') {
         return correctSequence(question).map((option) => option.text).join(' ');
     }

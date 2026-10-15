@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native'
 import { AudioButton } from '@/components/audio-button';
 import { Markdown } from '@/components/markdown';
 import { AppColors } from '@/constants/app-colors';
-import { shuffle } from '@/lib/answers';
+import { matchingPairs, shuffle } from '@/lib/answers';
 import type { AnswerOption, Question } from '@/lib/types';
 
 // стиль текста вопроса — им же рисуется предпросмотр в редакторе (MarkdownField)
@@ -19,6 +19,7 @@ const INSTRUCTIONS = {
     SINGLE_CHOICE: 'Выберите правильный ответ',
     MULTIPLE_CHOICE: 'Выберите все правильные ответы',
     ORDER: 'Соберите ответ в правильном порядке',
+    MATCHING: 'Соедините пары',
 } as const;
 
 // Шаг-вопрос. Выбор хранится у родителя (selected), чтобы он мог проверить ответ.
@@ -31,6 +32,8 @@ export function QuestionStep({ question, selected, onChange, checked }: {
 }) {
     // перемешиваем один раз на показ вопроса — иначе в ORDER порядок вариантов выдал бы ответ
     const [options] = useState(() => shuffle(question.options));
+    // MATCHING: правый столбец перемешан отдельно от левого
+    const [rightOptions] = useState(() => shuffle(question.options));
 
     return (
         <View>
@@ -43,7 +46,9 @@ export function QuestionStep({ question, selected, onChange, checked }: {
                 </View>
             </View>
 
-            {question.type === 'ORDER' ? (
+            {question.type === 'MATCHING' ? (
+                <MatchingAnswer left={options} right={rightOptions} selected={selected} onChange={onChange} checked={checked} />
+            ) : question.type === 'ORDER' ? (
                 <OrderAnswer options={options} selected={selected} onChange={onChange} disabled={checked} />
             ) : (
                 <ChoiceList
@@ -135,6 +140,84 @@ function OrderAnswer({ options, selected, onChange, disabled }: {
     );
 }
 
+// MATCHING: два столбца. Нажатие на слово выделяет его, нажатие на слово в другом столбце — соединяет их в пару
+// (у обоих появляется номер пары). Нажатие на соединённое слово разъединяет пару.
+function MatchingAnswer({ left, right, selected, onChange, checked }: {
+    left: AnswerOption[];
+    right: AnswerOption[];
+    selected: number[];
+    onChange: (selected: number[]) => void;
+    checked: boolean;
+}) {
+    const [active, setActive] = useState<{ side: 'left' | 'right'; id: number } | null>(null);
+    const pairs = matchingPairs(selected);
+    const pairIndex = { left: new Map<number, number>(), right: new Map<number, number>() };
+    pairs.forEach(([l, r], i) => {
+        pairIndex.left.set(l, i);
+        pairIndex.right.set(r, i);
+    });
+
+    const press = (side: 'left' | 'right', id: number) => {
+        const paired = pairIndex[side].get(id);
+        if (paired !== undefined) {
+            onChange(pairs.filter((_, i) => i !== paired).flat());
+            return;
+        }
+        if (!active || active.side === side) {
+            setActive(active?.side === side && active.id === id ? null : { side, id });
+            return;
+        }
+        const pair = side === 'left' ? [id, active.id] : [active.id, id];
+        onChange([...selected, ...pair]);
+        setActive(null);
+    };
+
+    const renderColumn = (side: 'left' | 'right', items: AnswerOption[]) => (
+        <View style={styles.matchColumn}>
+            {items.map((option) => {
+                const index = pairIndex[side].get(option.id);
+                let variant: 'idle' | 'selected' | 'right' | 'wrong' = 'idle';
+                if (index !== undefined) {
+                    const [l, r] = pairs[index];
+                    variant = checked ? (l === r ? 'right' : 'wrong') : 'selected';
+                }
+                const isActive = active?.side === side && active.id === option.id;
+                return (
+                    <Pressable
+                        key={option.id}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isActive || index !== undefined }}
+                        disabled={checked}
+                        onPress={() => press(side, option.id)}
+                        style={({ pressed }) => [
+                            styles.match,
+                            choiceStyles[variant],
+                            isActive && styles.matchActive,
+                            pressed && styles.choicePressed,
+                        ]}
+                    >
+                        {index !== undefined ? (
+                            <View style={[styles.matchBadge, markerStyles[variant]]}>
+                                <Text style={styles.matchBadgeText}>{index + 1}</Text>
+                            </View>
+                        ) : null}
+                        <Text style={[styles.matchText, textStyles[variant]]}>
+                            {side === 'left' ? option.text : option.matchText}
+                        </Text>
+                    </Pressable>
+                );
+            })}
+        </View>
+    );
+
+    return (
+        <View style={styles.matchColumns}>
+            {renderColumn('left', left)}
+            {renderColumn('right', right)}
+        </View>
+    );
+}
+
 function Chip({ text, onPress, disabled }: { text: string; onPress: () => void; disabled: boolean }) {
     return (
         <Pressable
@@ -215,6 +298,49 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         justifyContent: 'center',
         gap: 8,
+    },
+    matchColumns: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    matchColumn: {
+        flex: 1,
+        gap: 10,
+    },
+    match: {
+        minHeight: 52,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        borderWidth: 2,
+        borderBottomWidth: 4,
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+    },
+    // слово выбрано и ждёт пару из другого столбца
+    matchActive: {
+        backgroundColor: AppColors.blueBackground,
+        borderColor: AppColors.blue,
+        borderStyle: 'dashed',
+    },
+    matchBadge: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    matchBadgeText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '800',
+    },
+    matchText: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '600',
+        textAlign: 'center',
     },
     chip: {
         borderWidth: 2,

@@ -69,10 +69,8 @@ const styles = StyleSheet.create({
         backgroundColor: AppColors.surfaceRaised,
         borderWidth: 2,
         borderColor: AppColors.errorBackground,
-        shadowColor: '#000',
-        shadowOpacity: 0.4,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
+        // shadow* устарели (в вебе — предупреждение в консоли), boxShadow работает и в вебе, и на телефоне
+        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.4)',
         elevation: 8,
     },
     text: {

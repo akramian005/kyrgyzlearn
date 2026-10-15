@@ -10,7 +10,7 @@ import { useAnswerSounds } from '@/components/player/answer-sounds';
 import { MessageStep } from '@/components/player/message-step';
 import { QuestionStep } from '@/components/player/question-step';
 import { AppColors } from '@/constants/app-colors';
-import { correctAnswerText, isAnswerCorrect } from '@/lib/answers';
+import { correctAnswerText, isAnswerComplete, isAnswerCorrect } from '@/lib/answers';
 import { confirmAsync } from '@/lib/confirm';
 import { errorMessage, useApi, useLoader } from '@/lib/hooks';
 import type { Lesson, LessonItem } from '@/lib/types';
@@ -196,7 +196,7 @@ function Player({ lesson }: { lesson: Lesson }) {
 
                 <View style={styles.footerInner}>
                     {current.kind === 'QUESTION' && !answered ? (
-                        <Button title="Проверить" onPress={check} disabled={selected.length === 0} style={styles.flex} />
+                        <Button title="Проверить" onPress={check} disabled={!isAnswerComplete(current, selected)} style={styles.flex} />
                     ) : (
                         <Button
                             title="Продолжить"

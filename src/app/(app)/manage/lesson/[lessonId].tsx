@@ -11,11 +11,9 @@ import {
     Page,
     ScreenHeader,
     SectionTitle,
-    TextField,
 } from '@/components/app-ui';
 import { ItemCard } from '@/components/editor/item-card';
-import { MarkdownField } from '@/components/editor/markdown-field';
-import { DESCRIPTION_TEXT_STYLE, markdownToPlain } from '@/components/markdown';
+import { markdownToPlain } from '@/components/markdown';
 import { MessageForm } from '@/components/editor/message-form';
 import { QuestionForm } from '@/components/editor/question-form';
 import { AppColors } from '@/constants/app-colors';
@@ -29,7 +27,7 @@ import {
     saveMessage,
     saveQuestion,
 } from '@/lib/lesson-drafts';
-import type { Lesson, LessonItem } from '@/lib/types';
+import type { LessonItem } from '@/lib/types';
 
 type ItemKind = 'question' | 'message';
 
@@ -137,7 +135,7 @@ export default function LessonEditorScreen() {
     return (
         <View style={styles.screen}>
             <ScreenHeader
-                title={lesson?.title ?? 'Урок'}
+                title="Урок"
                 right={lesson && lesson.items.length > 0 ? (
                     <IconButton
                         icon="play-circle"
@@ -154,8 +152,6 @@ export default function LessonEditorScreen() {
 
                     {lesson ? (
                         <>
-                            <LessonMetaForm key={lesson.id} lesson={lesson} onSaved={reload} />
-
                             <SectionTitle>Шаги урока</SectionTitle>
 
                             {lesson.items.length === 0 && editing === null ? (
@@ -210,60 +206,6 @@ function InsertSlot({ expanded, onAdd }: { expanded: boolean; onAdd: (kind: Item
             <Button title="Вопрос" icon="help-circle-outline" variant="secondary" small onPress={() => onAdd('question')} style={styles.flex} />
             <Button title="Сообщение" icon="chatbubble-ellipses-outline" variant="secondary" small onPress={() => onAdd('message')} style={styles.flex} />
             {expanded ? null : <IconButton icon="close" label="Отмена" onPress={() => setOpen(false)} />}
-        </View>
-    );
-}
-
-function LessonMetaForm({ lesson, onSaved }: { lesson: Lesson; onSaved: () => Promise<void> }) {
-    const api = useApi();
-    const [title, setTitle] = useState(lesson.title);
-    const [description, setDescription] = useState(lesson.description ?? '');
-    const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const changed = title.trim() !== lesson.title || (description.trim() || null) !== (lesson.description || null);
-
-    const handleSave = async () => {
-        if (!title.trim()) {
-            setError('Название не может быть пустым');
-            return;
-        }
-        setError(null);
-        setSaving(true);
-        try {
-            await api.lessons.update(lesson.id, { title: title.trim(), description: description.trim() || null });
-            await onSaved();
-        } catch (e) {
-            setError(errorMessage(e));
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    // отменить правки — вернуть сохранённые название и описание
-    const handleCancel = () => {
-        setTitle(lesson.title);
-        setDescription(lesson.description ?? '');
-        setError(null);
-    };
-
-    return (
-        <View>
-            <ErrorBanner message={error} />
-            <TextField label="Название урока" value={title} onChangeText={setTitle} />
-            <MarkdownField
-                label="Описание"
-                value={description}
-                onChangeText={setDescription}
-                placeholder="Необязательно"
-                previewStyle={DESCRIPTION_TEXT_STYLE}
-            />
-            {changed ? (
-                <View style={styles.formButtons}>
-                    <Button title="Отмена" variant="ghost" onPress={handleCancel} disabled={saving} style={styles.flex} />
-                    <Button title="Сохранить" icon="checkmark" onPress={handleSave} loading={saving} style={styles.flex} />
-                </View>
-            ) : null}
         </View>
     );
 }

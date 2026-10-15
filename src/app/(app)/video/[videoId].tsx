@@ -3,7 +3,6 @@ import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { EmptyState, ErrorBanner, LoadingView, OfflineState, Page, ScreenHeader, Title } from '@/components/app-ui';
-import { DESCRIPTION_TEXT_STYLE, Markdown } from '@/components/markdown';
 import { VideoPlayer } from '@/components/video-player';
 import { AppColors } from '@/constants/app-colors';
 import { useApi, useLoader } from '@/lib/hooks';
@@ -43,11 +42,6 @@ export default function VideoScreen() {
                             )}
 
                             <Title>{video.title}</Title>
-                            {video.description ? (
-                                <View style={styles.description}>
-                                    <Markdown text={video.description} style={DESCRIPTION_TEXT_STYLE} />
-                                </View>
-                            ) : null}
                         </>
                     ) : null}
                 </Page>
@@ -63,8 +57,5 @@ const styles = StyleSheet.create({
     },
     player: {
         marginBottom: 20,
-    },
-    description: {
-        marginTop: -8,
     },
 });

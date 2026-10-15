@@ -17,7 +17,7 @@ import {
     type QuestionDraft,
 } from '@/lib/lesson-drafts';
 import { useIsDesktopWeb } from '@/lib/device';
-import { QUESTION_TYPE_LABELS, type QuestionType } from '@/lib/types';
+import { MAX_MATCHING_PAIRS, QUESTION_TYPE_LABELS, type QuestionType } from '@/lib/types';
 
 // строка варианта в «Последовательности» — одной высоты, чтобы их можно было перетаскивать
 const ORDER_ROW_HEIGHT = 56;
@@ -31,6 +31,15 @@ const TYPE_HINTS: Record<QuestionType, string> = {
     ORDER: 'Ученик собирает ответ из слов по порядку. Слова с номером — правильная последовательность '
         + '(расставьте их, перетащив за ⋮⋮), «Лишнее» — для сложности, в ответ не входит. '
         + 'Нажмите на номер или «Лишнее», чтобы переключить.',
+    MATCHING: 'Впишите пары: слово слева и то, что ему соответствует, справа (например, перевод). '
+        + `Ученик увидит оба столбца перемешанными и соединит их. До ${MAX_MATCHING_PAIRS} пар.`,
+};
+
+const OPTIONS_LABELS: Record<QuestionType, string> = {
+    SINGLE_CHOICE: 'Варианты ответа',
+    MULTIPLE_CHOICE: 'Варианты ответа',
+    ORDER: 'Слова',
+    MATCHING: 'Пары',
 };
 
 export function QuestionForm({ initial, isNew, onSave, onCancel }: {
@@ -95,6 +104,28 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
         orderNumbers.push(option.inAnswer ? ++counter : null);
     }
 
+    // строка пары в «Сопоставлении»: слово — его пара
+    const renderPair = (option: OptionDraft, index: number) => (
+        <View key={option.key} style={styles.optionRow}>
+            <TextInput
+                value={option.text}
+                onChangeText={(text) => updateOption(option.key, { text })}
+                placeholder={`Слово ${index + 1}`}
+                placeholderTextColor={AppColors.textSecondary}
+                style={styles.optionInput}
+            />
+            <Ionicons name="swap-horizontal" size={18} color={AppColors.textSecondary} />
+            <TextInput
+                value={option.matchText}
+                onChangeText={(matchText) => updateOption(option.key, { matchText })}
+                placeholder="Пара"
+                placeholderTextColor={AppColors.textSecondary}
+                style={styles.optionInput}
+            />
+            <IconButton icon="close" label="Удалить пару" color={AppColors.error} onPress={() => removeOption(option.key)} />
+        </View>
+    );
+
     // строка варианта; handle — ручка перетаскивания (только в «Последовательности»)
     const renderOption = (option: OptionDraft, index: number, handle?: ReactNode) => {
         const order = draft.type === 'ORDER';
@@ -150,8 +181,8 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
             <Segmented value={draft.type} options={TYPE_OPTIONS} onChange={(type) => setDraft((d) => changeQuestionType(d, type))} />
             <Text style={styles.hint}>{TYPE_HINTS[draft.type]}</Text>
 
-            <Text style={styles.label}>{draft.type === 'ORDER' ? 'Слова' : 'Варианты ответа'}</Text>
-            {draft.type === 'ORDER' ? (
+            <Text style={styles.label}>{OPTIONS_LABELS[draft.type]}</Text>
+            {draft.type === 'MATCHING' ? draft.options.map(renderPair) : draft.type === 'ORDER' ? (
                 <DraggableList
                     items={draft.options}
                     keyOf={(option) => option.key}
@@ -161,7 +192,17 @@ export function QuestionForm({ initial, isNew, onSave, onCancel }: {
                 />
             ) : draft.options.map((option, index) => renderOption(option, index))}
 
-            {draft.type === 'ORDER' ? (
+            {draft.type === 'MATCHING' ? (
+                <Button
+                    title={draft.options.length >= MAX_MATCHING_PAIRS ? `Максимум ${MAX_MATCHING_PAIRS} пар` : 'Добавить пару'}
+                    icon="add"
+                    variant="secondary"
+                    small
+                    disabled={draft.options.length >= MAX_MATCHING_PAIRS}
+                    onPress={() => addOption(true)}
+                    style={styles.addOption}
+                />
+            ) : draft.type === 'ORDER' ? (
                 <View style={styles.addButtons}>
                     <Button title="Добавить слово" icon="add" variant="secondary" small onPress={() => addOption(true)} />
                     <Button title="Добавить лишнее слово" icon="add" variant="secondary" small onPress={() => addOption(false)} />

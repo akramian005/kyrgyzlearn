@@ -3,18 +3,16 @@ import type { Api } from '@/lib/api';
 import { applyMedia } from '@/lib/lesson-drafts';
 import type { CourseVideo } from '@/lib/types';
 
-// Черновик видео курса в форме редактора
+// Черновик видео курса в форме редактора. Описания у видео нет — только название и файл
 export type VideoDraft = {
     title: string;
-    description: string;
     file: MediaDraft;
 };
 
-export const newVideoDraft = (): VideoDraft => ({ title: '', description: '', file: emptyMedia() });
+export const newVideoDraft = (): VideoDraft => ({ title: '', file: emptyMedia() });
 
 export const videoToDraft = (video: CourseVideo): VideoDraft => ({
     title: video.title,
-    description: video.description ?? '',
     file: emptyMedia(video.videoUrl),
 });
 
@@ -24,17 +22,18 @@ export function validateVideo(draft: VideoDraft): string | null {
     return null;
 }
 
-// original === null — создаём новое видео в конце курса
-export async function saveVideo(api: Api, courseId: number, original: CourseVideo | null, draft: VideoDraft) {
-    const input = { title: draft.title.trim(), description: draft.description.trim() || null };
+// original === null — создаём новое видео в конце юнита unitId
+export async function saveVideo(api: Api, courseId: number, original: CourseVideo | null, draft: VideoDraft, unitId?: number) {
+    const input = { title: draft.title.trim(), description: null };
     let videoId: number;
 
     if (!original) {
-        videoId = (await api.videos.create(courseId, input)).id;
+        if (unitId === undefined) throw new Error('Не выбран юнит для нового видео');
+        videoId = (await api.videos.create(courseId, { ...input, unitId })).id;
     } else {
         videoId = original.id;
-        if (input.title !== original.title || input.description !== original.description) {
-            await api.videos.update(courseId, videoId, input);
+        if (input.title !== original.title) {
+            await api.videos.update(courseId, videoId, { title: input.title });
         }
     }
 

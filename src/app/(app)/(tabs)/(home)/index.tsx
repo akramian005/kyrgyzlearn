@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 
-import { CourseCard } from '@/components/course-card';
+import { HomeCourseCard } from '@/components/course-card';
 import { EmptyState, ErrorBanner, LoadingView, Muted, OfflineState, Page, Title } from '@/components/app-ui';
 import { useApi, useLoader } from '@/lib/hooks';
 
@@ -28,7 +28,7 @@ export default function HomeScreen() {
             ) : null}
 
             {official.map((course) => (
-                <CourseCard
+                <HomeCourseCard
                     key={course.id}
                     course={course}
                     onPress={() => router.push({ pathname: '/course/[courseId]', params: { courseId: course.id } })}

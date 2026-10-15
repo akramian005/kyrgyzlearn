@@ -50,6 +50,22 @@ export function Page({ children, onRefresh, refreshing = false, ref }: PropsWith
     );
 }
 
+// В вебе нажатая кнопка остаётся в фокусе. Если нажатие уводит на другой экран, React Navigation скрывает
+// старый экран (aria-hidden) вместе с этой кнопкой, и Chrome пишет в консоль «Blocked aria-hidden…».
+// Поэтому перед нажатием снимаем фокус; на телефоне ничего не делает
+export function blurFocused() {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+}
+
+export function pressWithBlur(onPress: (() => void) | undefined): (() => void) | undefined {
+    return onPress ? () => {
+        blurFocused();
+        onPress();
+    } : undefined;
+}
+
 // Назад по истории; если её нет (страницу открыли по ссылке или обновили в браузере) —
 // на запасной экран, иначе router.back() ничего не делает и пишет предупреждение GO_BACK
 export function goBack(fallback: Href = '/') {
@@ -91,7 +107,7 @@ export function Card({ children, style, onPress }: PropsWithChildren<{
     return (
         <Pressable
             accessibilityRole="button"
-            onPress={onPress}
+            onPress={pressWithBlur(onPress)}
             style={({ pressed }) => [styles.card, style, pressed && styles.cardPressed]}
         >
             {children}
@@ -238,24 +254,41 @@ function ScrollThumb({ visible, content, offset }: { visible: number; content: n
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
-export function Button({ title, onPress, loading, disabled, variant = 'primary', icon, small, style }: {
+// decorative — только вид кнопки, без своего нажатия: для кнопки внутри нажимаемой карточки
+// (в вебе кнопка внутри кнопки — ошибка вложенности <button>), нажатие обрабатывает карточка
+export function Button({ title, onPress, loading, disabled, variant = 'primary', icon, small, style, decorative }: {
     title: string;
-    onPress: () => void;
+    onPress?: () => void;
     loading?: boolean;
     disabled?: boolean;
     variant?: ButtonVariant;
     icon?: IconName;
     small?: boolean;
     style?: StyleProp<ViewStyle>;
+    decorative?: boolean;
 }) {
     const inactive = loading || disabled;
     const textColor = variant === 'primary' ? '#fff' : variant === 'danger' ? AppColors.error : AppColors.text;
+    const label = (
+        <>
+            {icon ? <Ionicons name={icon} size={small ? 16 : 18} color={textColor} /> : null}
+            <Text style={[styles.buttonText, small && styles.buttonTextSmall, { color: textColor }]}>{title}</Text>
+        </>
+    );
+
+    if (decorative) {
+        return (
+            <View style={[styles.button, styles[`button_${variant}`], small && styles.buttonSmall, inactive && styles.pressed, style]}>
+                {label}
+            </View>
+        );
+    }
 
     return (
         <Pressable
             accessibilityRole="button"
             accessibilityState={{ disabled: inactive }}
-            onPress={onPress}
+            onPress={pressWithBlur(onPress)}
             disabled={inactive}
             style={({ pressed }) => [
                 styles.button,
@@ -265,14 +298,7 @@ export function Button({ title, onPress, loading, disabled, variant = 'primary',
                 style,
             ]}
         >
-            {loading ? (
-                <ActivityIndicator color={textColor} />
-            ) : (
-                <>
-                    {icon ? <Ionicons name={icon} size={small ? 16 : 18} color={textColor} /> : null}
-                    <Text style={[styles.buttonText, small && styles.buttonTextSmall, { color: textColor }]}>{title}</Text>
-                </>
-            )}
+            {loading ? <ActivityIndicator color={textColor} /> : label}
         </Pressable>
     );
 }
@@ -288,7 +314,7 @@ export function IconButton({ icon, onPress, label, color = AppColors.text, disab
         <Pressable
             accessibilityRole="button"
             accessibilityLabel={label}
-            onPress={onPress}
+            onPress={pressWithBlur(onPress)}
             disabled={disabled}
             hitSlop={6}
             style={({ pressed }) => [styles.iconButton, (pressed || disabled) && styles.pressed]}
